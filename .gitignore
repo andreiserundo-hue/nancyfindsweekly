@@ -1,0 +1,14 @@
+# secrets — never commit
+secrets.json
+meta_token.txt
+.env
+.mcp.json
+
+# deps & generated
+node_modules/
+creative_imgs/
+dashboard.html
+dashboard_data.json
+*.pptx
+*.output
+_*.js

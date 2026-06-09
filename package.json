@@ -1,0 +1,13 @@
+{
+  "name": "nancyfindsweekly",
+  "version": "1.0.0",
+  "description": "Nancy Finds weekly paid-acquisition dashboard — live data from Glued (Meta) + Shopify, with Meta Marketing API failover.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "refresh": "node weekly_refresh.js"
+  },
+  "dependencies": {
+    "pptxgenjs": "^3.12.0"
+  }
+}

@@ -1,0 +1,275 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Nancy Finds — Live Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Calibri,'Segoe UI',sans-serif;background:#F4EEF1;color:#1A1430;display:flex;min-height:100vh}
+.nav{width:230px;background:#1A1430;color:#fff;padding:22px 0;flex-shrink:0;position:sticky;top:0;height:100vh}
+.brand{font-family:Georgia,serif;font-size:20px;font-weight:700;padding:0 22px 4px}
+.brand small{display:block;font-family:Calibri;font-size:10px;letter-spacing:2px;color:#C44B6E;font-weight:700;margin-top:2px}
+.navitem{padding:11px 22px;font-size:14px;color:#BCB5C2;cursor:pointer;border-left:3px solid transparent;display:flex;gap:10px}
+.navitem:hover{background:#2A2046;color:#fff}.navitem.active{background:#2A2046;color:#fff;border-left-color:#C44B6E;font-weight:700}
+.gen{position:absolute;bottom:16px;left:22px;right:22px;font-size:10px;color:#6b6480;font-style:italic}
+.main{flex:1;padding:22px 30px;overflow-y:auto}
+.datebar{background:#fff;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.datebar b{font-size:12px;color:#8A8392;margin-right:4px}
+.pbtn{border:1px solid #E7DFE4;background:#fff;border-radius:8px;padding:7px 13px;font-size:13px;cursor:pointer;color:#8A8392;font-weight:600}
+.pbtn.on{background:#C44B6E;color:#fff;border-color:#C44B6E}
+.datebar input{border:1px solid #E7DFE4;border-radius:8px;padding:6px 8px;font-size:13px}
+h1{font-family:Georgia,serif;font-size:26px;margin-bottom:2px}
+.cap{color:#8A8392;font-size:12px;margin-bottom:16px}
+.card{background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-bottom:18px}
+h2{font-family:Georgia,serif;font-size:18px;color:#8E2F4C;margin-bottom:2px}
+.sub2{color:#8A8392;font-size:11px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:right;color:#8A8392;font-size:10px;text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;border-bottom:2px solid #F4EEF1}
+td{text-align:right;padding:10px;border-bottom:1px solid #F4EEF1}
+th:first-child,td.lh{text-align:left}
+tr:nth-child(even) td{background:#FBF7F9}
+.peach td{background:#FCE4D6 !important}
+.pill{display:inline-block;padding:3px 11px;border-radius:11px;font-size:11px;font-weight:700;color:#fff}
+.dot{font-size:20px;vertical-align:middle}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{background:#1A1430;border-radius:12px;padding:16px 18px}
+.kpi .v{font-family:Georgia,serif;font-size:26px;color:#fff;font-weight:700}.kpi .l{color:#C44B6E;font-size:11px;text-transform:uppercase;letter-spacing:1px}.kpi .n{color:#BCB5C2;font-size:11px;font-style:italic;margin-top:2px}
+.phases{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.phase{background:#1A1430;border-radius:12px;padding:16px 18px}
+.phase.f{border:1.5px solid #C44B6E}
+.phase .t{color:#C44B6E;font-size:11px;font-weight:700;letter-spacing:1px}.phase .b{font-family:Georgia,serif;font-size:34px;color:#fff;font-weight:700}.phase .u{color:#BCB5C2;font-size:12px}.phase .s{color:#F4EEF1;font-size:11px;font-style:italic;margin-top:3px}
+.wcards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.wc{background:#4A3D66;border-radius:10px;padding:13px 15px}.wc.g{background:#8E2F4C}.wc .v{font-family:Georgia,serif;font-size:19px;color:#fff;font-weight:700}.wc .k{color:#F4EEF1;font-size:11px}.wc .n{color:#BCB5C2;font-size:10px;font-style:italic}
+.cgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.ccard{background:#1A1430;border-radius:12px;overflow:hidden}
+.cimg{width:100%;aspect-ratio:9/16;background:#000;object-fit:contain;display:block}
+.cbody{padding:10px 12px}.cname{font-size:11px;font-weight:700;color:#fff;min-height:28px;line-height:1.2}
+.crow{display:flex;justify-content:space-between;align-items:center;margin:6px 0 3px}.croas{font-family:Georgia,serif;font-size:19px;font-weight:700}.cmeta{font-size:10px;color:#BCB5C2}
+.hero{display:flex;gap:20px;background:#1A1430;border-radius:14px;padding:20px;margin-bottom:18px}
+.hero .himg{width:150px;aspect-ratio:9/16;object-fit:contain;background:#000;border-radius:10px;flex-shrink:0}
+.bar{height:14px;background:#C44B6E;border-radius:3px;display:inline-block}.barbg{background:#F4EEF1;border-radius:3px;flex:1}
+.ns{background:#1A1430;border-radius:12px;padding:16px 20px;margin-top:6px}
+.ns h3{color:#C44B6E;font-size:12px;letter-spacing:1px;margin-bottom:10px}
+.ns div.i{color:#F4EEF1;font-size:13px;padding:6px 0;border-bottom:1px solid #2A2046;display:flex;gap:10px}
+.ns div.i:last-child{border:0}.ns .b{color:#C44B6E;font-weight:700}
+.note{background:#F7E9EF;border-radius:10px;padding:12px 14px;font-size:12.5px;margin-top:6px;display:flex;align-items:center;gap:10px}
+.note img{width:46px;aspect-ratio:9/16;object-fit:contain;background:#000;border-radius:6px}
+.loading{color:#8A8392;font-style:italic;padding:40px;text-align:center}
+.killbox{background:#FBEFEF;border:1px solid #F0C9C9;border-radius:10px;padding:14px 16px;margin-top:14px}
+/* scorecard target columns */
+.tg{color:#8A8392 !important;background:#FBF9FA !important;font-size:12px;font-weight:400}
+th:nth-child(5),td:nth-child(5){border-left:2px solid #E7DFE4}
+.tgh{color:#B0A8B8}
+/* clean goal panel */
+.goalpanel{background:#1A1430;border-radius:16px;padding:24px 26px;margin-bottom:20px}
+.gp-k{color:#C44B6E;font-size:11px;font-weight:700;letter-spacing:2px}
+.gp-h{font-family:Georgia,serif;font-size:26px;color:#fff;font-weight:700;margin:4px 0 6px}
+.gp-fwd{color:#BCB5C2;font-size:13px;font-style:italic;max-width:760px;margin-bottom:18px}
+.gp-phases{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+.gp-phase{background:#2A2046;border-radius:11px;padding:14px 16px}.gp-phase.f{border:1.5px solid #C44B6E}
+.gp-phase .t{color:#C44B6E;font-size:10px;font-weight:700;letter-spacing:1px}.gp-phase .b{font-family:Georgia,serif;font-size:30px;color:#fff;font-weight:700}.gp-phase .u{color:#BCB5C2;font-size:11px}.gp-phase .s{color:#9C93B5;font-size:10px;font-style:italic}
+.gp-w{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.gp-wc{background:#2A2046;border-radius:11px;padding:13px 15px}.gp-wc.g{background:#8E2F4C}.gp-wc .v{font-family:Georgia,serif;font-size:18px;color:#fff;font-weight:700}.gp-wc .k{color:#BCB5C2;font-size:11px}.gp-wc .n{color:#9C93B5;font-size:10px;font-style:italic}
+/* strategy */
+.stratgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.stratcard{background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.stratcard h2{display:flex;align-items:center;gap:8px}
+.sitem{padding:10px 0;border-bottom:1px solid #F4EEF1;font-size:13px;line-height:1.4}.sitem:last-child{border:0}
+.sitem b{display:block;font-size:11px;letter-spacing:.5px;margin-bottom:2px}
+.dlbtn{background:#1F9D6B;color:#fff;border:0;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none}
+.hrbtn{background:#2A2046;color:#fff;border:0;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
+.ccard{cursor:pointer;transition:transform .1s}.ccard:hover{transform:translateY(-3px)}
+.modal{display:none;position:fixed;inset:0;background:rgba(26,20,48,.82);z-index:50;align-items:center;justify-content:center;padding:30px}
+.modal.show{display:flex}
+.mbox{background:#fff;border-radius:16px;max-width:840px;width:100%;max-height:90vh;overflow:auto;display:flex;gap:0}
+.mbox .mimg{width:300px;flex-shrink:0;background:#000;border-radius:16px 0 0 16px;object-fit:contain;align-self:stretch}
+.mbody{padding:24px 26px;flex:1}
+.mclose{position:absolute;top:24px;right:34px;color:#fff;font-size:30px;cursor:pointer;font-weight:300}
+.mrow{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F4EEF1;font-size:13px}.mrow b{color:#8A8392;font-weight:600}
+.hbar{display:flex;align-items:flex-end;gap:4px;height:150px;margin:10px 0}
+</style></head><body>
+<div class="nav">
+  <div class="brand">Nancy Finds<small>LIVE DASHBOARD</small></div>
+  <div style="margin-top:18px">
+    <div class="navitem active" data-p="overview">◈ Overview</div>
+    <div class="navitem" data-p="scorecard">▦ Scorecard</div>
+    <div class="navitem" data-p="campaigns">📣 Campaigns</div>
+    <div class="navitem" data-p="landing">🔗 Landing Pages</div>
+    <div class="navitem" data-p="creatives">🎨 Creatives</div>
+    <div class="navitem" data-p="products">🌹 Products</div>
+    <div class="navitem" data-p="countries">🌎 Countries</div>
+    <div class="navitem" data-p="strategy" style="margin-top:8px;border-top:1px solid #2A2046;padding-top:14px">✦ Strategy</div>
+  </div>
+  <div class="gen" id="gen">live · Glued + Shopify</div>
+</div>
+<div class="main">
+  <div class="datebar" id="datebar"></div>
+  <div id="view"><div class="loading">Loading…</div></div>
+</div>
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><span class="mclose" onclick="closeModal()">×</span><div class="mbox" id="mbox"></div></div>
+<script>
+const FX=7.8;
+const usd=n=>'$'+Math.round(n).toLocaleString();
+const usdH=n=>'$'+Math.round(n/FX).toLocaleString();
+// strict: GREEN = above Best · AMBER = Good–Best · RED = below Good
+const rc=v=>v>=2.0?'#1F9D6B':(v>=1.5?'#E0922F':'#DB3B3B');
+const dot=(v,good,best)=>'<span class="dot" style="color:'+(v>=best?'#1F9D6B':(v>=good?'#E0922F':'#DB3B3B'))+'">●</span>';
+const tier=v=>v>=2.1?['SCALE','#1F9D6B']:(v>=1.6?['HOLD','#E0922F']:['CUT','#DB3B3B']);
+const clean=n=>(n||'').replace(/Nancy-Testing-2_/,'').replace(/https?:\/\/(www\.)?/,'');
+const fmtD=d=>d.toISOString().slice(0,10);
+function ago(n){const d=new Date();d.setDate(d.getDate()-n);return fmtD(d);}
+const TODAY=fmtD(new Date()), YEST=ago(1);
+const PRESETS={Today:[fmtD(new Date()),fmtD(new Date())],Yesterday:[YEST,YEST],'Last 7 Days':[ago(7),YEST],'Last 30 Days':[ago(30),YEST],'This Month':[fmtD(new Date()).slice(0,7)+'-01',YEST]};
+let active={start:ago(7),end:YEST,label:'Last 7 Days',st:null,et:null};
+const C={}; // range cache
+async function getRange(s,e,st,et){const k=s+'_'+e+'_'+(st||'')+'_'+(et||'');if(C[k])return C[k];let q='/api/range?start='+s+'&end='+e;if(st&&et)q+='&st='+st+'&et='+et;const r=await fetch(q).then(x=>x.json());C[k]=r;return r;}
+function days(s,e){return Math.max(1,Math.round((new Date(e)-new Date(s))/86400000)+1);}
+
+// date bar — single dropdown + optional time
+function renderDatebar(){const db=document.getElementById('datebar');
+  const opts=Object.keys(PRESETS).concat('Custom').map(p=>'<option'+(active.label===p?' selected':'')+'>'+p+'</option>').join('');
+  db.innerHTML='<b>Range</b><select id="rangeSel" class="pbtn" onchange="onRangeSel()" style="font-weight:600">'+opts+'</select>'+
+  '<span id="customWrap" style="display:'+(active.label==='Custom'?'inline':'none')+'"> <input type="date" id="ds" value="'+active.start+'"> <span style="color:#8A8392">→</span> <input type="date" id="de" value="'+active.end+'"></span>'+
+  ' <label style="font-size:12.5px;color:#8A8392"><input type="checkbox" id="tchk" '+(active.st?'checked':'')+' onchange="document.getElementById(\'twrap\').style.display=this.checked?\'inline\':\'none\'"> Add time</label>'+
+  '<span id="twrap" style="display:'+(active.st?'inline':'none')+'"> <input type="time" id="ts" value="'+(active.st||'00:00')+'"> <span style="color:#8A8392">→</span> <input type="time" id="te" value="'+(active.et||'23:59')+'"></span>'+
+  ' <button class="pbtn on" onclick="applyRange()">Apply</button>'+
+  '<span style="flex:1"></span><a class="dlbtn" href="/api/pptx" download>⬇ Download PPTX</a>'+
+  '<span style="margin-left:10px;color:#8A8392;font-size:12px">'+active.start+(active.start!==active.end?' → '+active.end:'')+(active.st?' · '+active.st+'–'+active.et:'')+'</span>';}
+function onRangeSel(){document.getElementById('customWrap').style.display=document.getElementById('rangeSel').value==='Custom'?'inline':'none';}
+function applyRange(){const sel=document.getElementById('rangeSel').value;let s,e;if(sel==='Custom'){s=document.getElementById('ds').value;e=document.getElementById('de').value;}else{s=PRESETS[sel][0];e=PRESETS[sel][1];}const useT=document.getElementById('tchk').checked;active={start:s,end:e,label:sel,st:useT?document.getElementById('ts').value:null,et:useT?document.getElementById('te').value:null};renderDatebar();render();}
+
+// next steps generator
+function nextSteps(tab,d){
+  let items=[];
+  if(tab==='overview'||tab==='campaigns'){const c=(d&&d.campaigns)||[];c.filter(x=>x.spend>0&&x.roas<1.5).forEach(x=>items.push(['FIX',clean(x.name).substring(0,40)+' at '+x.roas.toFixed(2)+'x — rework creative/LP toward the winning funnel before adding budget.']));}
+  if(tab==='landing'){const l=(d&&d.landing)||[];const w=l.filter(x=>x.roas>=1.5).sort((a,b)=>b.roas-a.roas)[0];if(w)items.push(['SCALE','Shift budget to '+clean(w.name).substring(0,34)+' ('+w.roas.toFixed(2)+'x) — your best LP this range.']);items.push(['REFRESH','Aura Scream LP cooled — refresh hook/offer and re-test with the new editorial creatives.']);}
+  if(tab==='creatives'){const cr=(d&&d.creatives)||[];const w=cr.filter(x=>x.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2);w.forEach(x=>items.push(['DOUBLE DOWN',clean(x.name).substring(0,36)+' ('+x.roas.toFixed(0)+'x) — feed into the biird ABO test (HK$200/day, 20 creatives).']));items.push(['CUT','Pause studio shots running sub-0.7x; rebudget to editorial/lifestyle angles.']);}
+  if(tab==='products'){items.push(['FOCUS','Keep spend on the suction line (Blossom Duo + Vine + Eclipse) — 84% of units.']);items.push(['STOCK','Stock/approve the reserved demand (Mushroom Cloud, Pebble Rose) to unlock held orders.']);}
+  if(tab==='countries'){items.push(['GEO-WEIGHT','Test US-only ad sets — US is ~65% of revenue; trim low-converting geos from Top-15.']);}
+  if(tab==='scorecard'||tab==='overview'){items.push(['UNBLOCK','Clear the fulfillment backlog — it is capping volume and driving refunds.']);items.push(['ESCALATE','Push Meta to approve a 2nd Business Manager / ad account (single-account risk).']);}
+  if(!items.length)items.push(['—','No actions flagged for this range.']);
+  return '<div class="ns"><h3>NEXT STEPS / ACTIONS</h3>'+items.map(i=>'<div class="i"><span class="b">'+i[0]+'</span><span>'+i[1]+'</span></div>').join('')+'</div>';
+}
+
+// ---------- PAGES ----------
+async function pageOverview(){
+  const [l30,l7]=await Promise.all([getRange(...PRESETS['Last 30 Days']),getRange(...PRESETS['Last 7 Days'])]);
+  const bestCre=(l7.creatives||[]).filter(x=>x.buys>0&&x.roas>1.5).sort((a,b)=>b.roas-a.roas)[0]||(l7.creatives||[]).filter(x=>x.buys>0)[0];
+  const bestLP=(l7.landing||[]).filter(x=>x.spend>0).sort((a,b)=>b.roas-a.roas)[0];
+  const tot=Object.values(l30.shop.products).reduce((a,p)=>a+p.units,0)||1;
+  const topP=Object.entries(l30.shop.products).sort((a,b)=>b[1].units-a[1].units)[0];
+  const topC=Object.entries(l30.shop.countries).sort((a,b)=>b[1].net-a[1].net)[0];
+  const ordTot=Object.values(l30.shop.countries).reduce((a,c)=>a+c.orders,0)||1;
+  const wc=(v,k,n,g)=>'<div class="gp-wc'+(g?' g':'')+'"><div class="v">'+v+'</div><div class="k">'+k+'</div><div class="n">'+n+'</div></div>';
+  const ph=(t,b,s,f)=>'<div class="gp-phase'+(f?' f':'')+'"><div class="t">'+t+'</div><div class="b">'+b+'</div><div class="u">revenue / day</div><div class="s">'+s+'</div></div>';
+  return '<h1>Overview</h1><div class="cap">The goal, where we are, and the forward play · standing windows</div>'+
+  '<div class="goalpanel"><div class="gp-k">NANCY FINDS · PAID ACQUISITION</div><div class="gp-h">The Goal — Own These Numbers</div>'+
+  '<div class="gp-fwd">Spend is throttled while the fulfillment backlog clears. The forward play: scale the green shoots — '+(bestLP?clean(bestLP.name).substring(0,24):'nancy-bloom')+' + the winning creatives — to rebuild toward $1,000/day.</div>'+
+  '<div class="gp-phases">'+ph('PHASE 1 · FLOOR','$1,000','ROAS ≥ 1.50 · never breach',true)+ph('PHASE 2 · HEALTHY','$1,000','ROAS ≥ 1.75 · efficient scale')+ph('PHASE 3 · GREAT','$2,000','ROAS ≥ 2.00 · scale volume')+'</div>'+
+  '<div class="gp-w">'+wc(topP?topP[0]:'—','Top product',topP?Math.round(topP[1].units/tot*100)+'% of units':'')+wc(topC?topC[0]:'—','Top market',topC?Math.round(topC[1].orders/ordTot*100)+'% of orders':'')+wc(l30.trueRoas.toFixed(2)+'x','30-day True ROAS','net · vs 1.50 floor')+wc(bestLP?clean(bestLP.name).substring(0,14):'—','Bright spot LP',bestLP?bestLP.roas.toFixed(2)+'x L7D':'',true)+'</div></div>'+
+  '<div class="grid2"><div class="card"><h2>Daily Net Revenue</h2><div class="sub2">Shopify, USD · last 30 days</div>'+dailyBars(l30.shop.daily)+'</div>'+
+  '<div class="card"><h2>Winning Creative & Highlights</h2><div class="sub2">last 7 days</div>'+shoots(l7)+'</div></div>';
+}
+function dailyBars(daily){const days=Object.entries(daily).sort((a,b)=>a[0]<b[0]?-1:1);if(!days.length)return '<div class="sub2">no orders</div>';const max=Math.max(...days.map(x=>x[1].net),1);const step=Math.ceil(days.length/8);
+  return '<div style="display:flex;align-items:flex-end;gap:3px;height:150px;margin-top:8px">'+days.map(([d,v])=>'<div title="'+d+': $'+Math.round(v.net)+'" style="flex:1;background:#C44B6E;border-radius:2px 2px 0 0;height:'+Math.max(2,v.net/max*140)+'px"></div>').join('')+'</div>'+
+  '<div style="display:flex;justify-content:space-between;margin-top:4px;color:#8A8392;font-size:9px">'+days.filter((_,i)=>i%step===0).map(([d])=>'<span>'+d.slice(5)+'</span>').join('')+'</div>';}
+function shoots(l7){const cre=(l7.creatives||[]).filter(x=>x.roas>1.5).sort((a,b)=>b.roas-a.roas).slice(0,2);const lp=(l7.landing||[]).filter(x=>x.spend>0).sort((a,b)=>b.roas-a.roas)[0];
+  let h=lp?'<div class="note" style="background:#E4F0EC">🟢 <b>Best LP:</b> '+clean(lp.name).substring(0,34)+' — '+lp.roas.toFixed(2)+'x</div>':'';
+  cre.forEach(a=>h+='<div class="note" style="background:#E4F0EC">'+(a.img?'<img src="'+a.img+'">':'')+'<span>🟢 <b>Winning creative:</b> '+clean(a.name).substring(0,28)+' — '+a.roas.toFixed(0)+'x</span></div>');
+  h+='<div class="note">🔴 <b>Watch:</b> campaigns below 1.5x; spend throttled for backlog (returns '+l7.shop.retPct.toFixed(0)+'%).</div>';return h;}
+
+async function pageScorecard(){
+  const [l30,l7,yd]=await Promise.all([getRange(...PRESETS['Last 30 Days']),getRange(...PRESETS['Last 7 Days']),getRange(YEST,YEST)]);
+  const D={L30D:[l30,30],L7D:[l7,7],Yesterday:[yd,1]};
+  const m=(r,days,key)=>{const s=r.shop;const sp=r.meta.spendUSD;switch(key){case'rev':return s.net/days;case'spend':return sp/days;case'spendPct':return s.net>0?sp/s.net*100:0;case'ord':return s.orders/days;case'ret':return s.retPct;case'meta':return r.meta.metaRoas;case'true':return r.trueRoas;}};
+  const row=(label,fmt,key,circ,g,b,peach,t)=>'<tr class="'+(peach?'peach':'')+'"><td class="lh">'+label+'</td>'+['L30D','L7D','Yesterday'].map(k=>{const v=m(D[k][0],D[k][1],key);return '<td>'+fmt(v)+(circ?' '+dot(v,g,b):'')+'</td>';}).join('')+'<td class="tg">'+t[0]+'</td><td class="tg">'+t[1]+'</td><td class="tg">'+t[2]+'</td></tr>';
+  return '<h1>Overall Scorecard</h1><div class="cap">Daily averages, USD · standing windows · ● green ≥ Better · amber ≥ Good · red below target</div><div class="card"><table>'+
+  '<tr><th>Metric</th><th>L30D</th><th>L7D</th><th>Yest</th><th class="tgh">Good</th><th class="tgh">Better</th><th class="tgh">Best</th></tr>'+
+  row('Revenue / day',usd,'rev',true,1000,2000,true,['$1,000','$1,500','$2,000'])+
+  row('Meta Spend / day',usd,'spend',false,0,0,false,['$667','$857','$1,000'])+
+  row('Spend % of rev',v=>v.toFixed(0)+'%','spendPct',false,0,0,false,['<67%','<57%','<50%'])+
+  row('Orders / day',v=>v.toFixed(1),'ord',false,0,0,false,['17','25','33'])+
+  row('Return %',v=>v.toFixed(1)+'%','ret',false,0,0,false,['<4%','<3%','<2%'])+
+  row('Meta ROAS',v=>v.toFixed(2),'meta',true,1.5,2.0,true,['1.50','1.75','2.00'])+
+  row('True ROAS (net)',v=>v.toFixed(2),'true',true,1.5,2.0,true,['1.50','1.75','2.00'])+
+  '</table></div>';
+}
+async function pageCampaigns(){const d=await getRange(active.start,active.end,active.st,active.et);
+  const rows=d.campaigns.filter(c=>c.spend>0).map(c=>{const t=tier(c.roas);return '<tr><td class="lh">'+clean(c.name).substring(0,56)+'</td><td>'+usdH(c.spend)+'</td><td style="color:'+rc(c.roas)+';font-weight:700;font-size:15px">'+c.roas.toFixed(2)+'</td><td>'+c.buys+'</td><td><span class="pill" style="background:'+t[1]+'">'+t[0]+'</span></td></tr>';}).join('');
+  return '<h1>Campaign Analysis</h1><div class="cap">'+active.label+' ('+active.start+'→'+active.end+') · SCALE ≥2.1 · HOLD 1.6–2.0 · CUT ≤1.5 · source: '+(d.source||'glued')+'</div><div class="card"><table><tr><th>Campaign</th><th>Spend</th><th>ROAS</th><th>Buys</th><th>Tier</th></tr>'+(rows||'<tr><td class="lh">No spend in range</td></tr>')+'</table></div>';
+}
+async function pageLanding(){const d=await getRange(active.start,active.end,active.st,active.et);const all=d.landing.filter(c=>c.spend>0);const aura=all.filter(x=>/aura/i.test(x.name));const bridge=all.filter(x=>!/aura/i.test(x.name));
+  const link=u=>{const h=/^https?:/.test(u)?u:'https://'+u;return '<a href="'+h+'" target="_blank" style="color:#C44B6E;text-decoration:none">'+clean(u).substring(0,44)+' ↗</a>';};
+  const tbl=a=>'<table><tr><th>Page</th><th>Spend</th><th>ROAS</th><th>Buys</th></tr>'+(a.map(c=>'<tr><td class="lh">'+link(c.name)+'</td><td>'+usdH(c.spend)+'</td><td style="color:'+rc(c.roas)+';font-weight:700">'+c.roas.toFixed(2)+'</td><td>'+c.buys+'</td></tr>').join('')||'<tr><td class="lh">none</td></tr>')+'</table>';
+  return '<h1>Landing Pages</h1><div class="cap">'+active.label+' · Bridge pages (PDP) + Aura advertorials</div><div class="grid2"><div class="card"><h2>Website / Bridge Pages</h2><div class="sub2">per-product PDP bridges</div>'+tbl(bridge)+'</div><div class="card"><h2>Aura Advertorials</h2><div class="sub2">listicle LPs</div>'+tbl(aura)+'</div></div>'+
+  '<div class="card"><h2>Why we killed one Aura listicle & kept the other</h2>'+
+  '<div class="grid2"><div class="killbox"><b style="color:#DB3B3B">✗ KILLED ~May 22 — "Best Rose Toys 2026"</b><div style="font-size:12.5px;margin-top:6px">aura.today/landing-best-rose-toys-2026 · bled at <b>0.08x</b>. Neutral "worth knowing" angle broke the scent-trail from the ad copy — clicks but no add-to-carts or purchases for 3 days.</div></div>'+
+  '<div class="killbox" style="background:#E4F0EC;border-color:#9ED3B8"><b style="color:#1F9D6B">✓ KEPT — "Rose Toys Scream"</b><div style="font-size:12.5px;margin-top:6px">aura.today/landing-rose-toys-scream · visceral "scream" hook mirrors the winning creatives. Blossom Duo ranked #1; competitors reframed as beginner/starter. Peaked ~1.79x; now needs a refresh.</div></div></div></div>';
+}
+async function pageCreatives(){const d=await getRange(active.start,active.end,active.st,active.et);
+  let list=(d.creatives||[]).filter(c=>c.buys>0).sort((a,b)=>b.roas-a.roas);let note='only creatives with purchases · click any for full detail';
+  if(!list.length){list=(d.creatives||[]).filter(c=>c.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,10);note='no purchases attributed in this range yet — showing active creatives by spend';}
+  window._cre=list;
+  const cards=list.map((c,i)=>{const col=rc(c.roas),t=tier(c.roas);const im=c.img?'<img class="cimg" src="'+c.img+'">':'<div class="cimg" style="display:flex;align-items:center;justify-content:center;color:#8A8392;font-size:11px">no image</div>';
+    return '<div class="ccard" onclick="openCre('+i+')">'+im+'<div class="cbody"><div class="cname">'+clean(c.name).substring(0,38)+'</div><div class="crow"><span class="croas" style="color:'+col+'">'+c.roas.toFixed(2)+'x</span><span class="pill" style="background:'+t[1]+'">'+t[0]+'</span></div><div class="cmeta">'+usdH(c.spend)+' · '+c.buys+' buys</div></div></div>';}).join('');
+  return '<h1>Creatives — Ads Analysis</h1><div class="cap">'+active.label+' · '+note+'</div><div class="cgrid">'+(cards||'<div class="cap">No creative spend in this range</div>')+'</div>';
+}
+function openCre(i){const c=window._cre[i];if(!c)return;const t=tier(c.roas);
+  const im=c.img?'<img class="mimg" src="'+c.img+'">':'<div class="mimg" style="display:flex;align-items:center;justify-content:center;color:#8A8392;width:300px">no image</div>';
+  const row=(k,v)=>'<div class="mrow"><b>'+k+'</b><span>'+v+'</span></div>';
+  document.getElementById('mbox').innerHTML=im+'<div class="mbody"><h2 style="margin-bottom:10px">'+clean(c.name)+'</h2>'+
+    '<div style="margin-bottom:12px"><span class="croas" style="color:'+rc(c.roas)+';font-size:30px">'+c.roas.toFixed(2)+'x</span> <span class="pill" style="background:'+t[1]+'">'+t[0]+'</span></div>'+
+    row('Spend',usdH(c.spend))+row('Purchases',c.buys)+row('CPA',c.cpa?usdH(c.cpa):'—')+row('Type',c.type||'image')+row('Status',c.status||'—')+
+    row('Campaign',clean(c.campaign||'—').substring(0,46))+row('Ad set',clean(c.adset||'—').substring(0,46))+(c.lp?row('Landing page',clean(c.lp).substring(0,46)):'')+
+    '</div>';
+  document.getElementById('modal').classList.add('show');}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+async function openHourly(){const date=active.end;document.getElementById('mbox').innerHTML='<div class="mbody"><div class="loading">Loading hourly for '+date+'…</div></div>';document.getElementById('modal').classList.add('show');
+  try{const j=await fetch('/api/hourly?date='+date).then(x=>x.json());const rows=(j.rows||[]);
+  // aggregate by hour across campaigns
+  const byH={};rows.forEach(r=>{const h=(r.hour!=null?r.hour:(r.ad_time||r.time||'').toString().slice(11,13));const m=r.metrics||r;const sp=+(m.spend||0),rev=+(m.revenue||0),bu=+(m.purchase_count||0);if(!byH[h])byH[h]={spend:0,rev:0,buys:0};byH[h].spend+=sp;byH[h].rev+=rev;byH[h].buys+=bu;});
+  const hrs=Object.keys(byH).sort();const max=Math.max(...hrs.map(h=>byH[h].spend),1);
+  let html='<div class="mbody" style="width:100%"><h2>Hourly — '+date+'</h2><div class="sub2">Meta spend & revenue by hour (HKT)</div>';
+  if(!hrs.length){html+='<div class="loading">No hourly data yet for '+date+'</div>';}
+  else{html+='<div class="hbar">'+hrs.map(h=>'<div title="'+h+':00 — spend '+usdH(byH[h].spend)+', rev '+usdH(byH[h].rev)+', buys '+byH[h].buys+'" style="flex:1;background:#C44B6E;border-radius:2px 2px 0 0;height:'+Math.max(2,byH[h].spend/max*140)+'px"></div>').join('')+'</div>'+
+    '<div style="display:flex;justify-content:space-between;color:#8A8392;font-size:9px">'+hrs.map(h=>'<span>'+h+'</span>').join('')+'</div>'+
+    '<table style="margin-top:14px"><tr><th>Hour</th><th>Spend</th><th>Revenue</th><th>Buys</th><th>ROAS</th></tr>'+hrs.map(h=>{const v=byH[h];const ro=v.spend>0?v.rev/v.spend:0;return '<tr><td class="lh">'+h+':00</td><td>'+usdH(v.spend)+'</td><td>'+usdH(v.rev)+'</td><td>'+v.buys+'</td><td style="color:'+rc(ro)+';font-weight:700">'+ro.toFixed(2)+'</td></tr>';}).join('')+'</table>';}
+  html+='</div>';document.getElementById('mbox').innerHTML=html;
+  }catch(e){document.getElementById('mbox').innerHTML='<div class="mbody"><div class="loading">Hourly error: '+e.message+'</div></div>';}}
+async function pageProducts(){const d=await getRange(active.start,active.end,active.st,active.et);const sale=['Blossom Duo','Vine','Eclipse','Bloom','Stem','Sprout'];const pr=d.shop.products;const tot=Object.values(pr).reduce((a,p)=>a+p.units,0)||1;const max=Math.max(...sale.map(n=>(pr[n]||{units:0}).units),1);
+  const rows=sale.map(n=>{const p=pr[n]||{units:0,rev:0};return '<tr><td class="lh">'+n+'</td><td><div style="display:flex;align-items:center;gap:8px"><div class="barbg"><div class="bar" style="width:'+(p.units/max*100)+'%"></div></div><b>'+p.units+'</b></div></td><td>'+usd(p.rev)+'</td><td>'+Math.round(p.units/tot*100)+'%</td></tr>';}).join('');
+  return '<h1>Orders by Product</h1><div class="cap">'+active.label+' · saleable suction line</div><div class="card"><table><tr><th>Product</th><th>Units</th><th>Revenue</th><th>% Units</th></tr>'+rows+'</table></div>';
+}
+async function pageCountries(){const d=await getRange(active.start,active.end,active.st,active.et);const co=Object.entries(d.shop.countries).sort((a,b)=>b[1].net-a[1].net).slice(0,8);const tot=Object.values(d.shop.countries).reduce((a,c)=>a+c.net,0)||1;const max=co[0]?co[0][1].net:1;
+  const rows=co.map(([c,v])=>'<tr><td class="lh">'+c+'</td><td>'+v.orders+'</td><td><div style="display:flex;align-items:center;gap:8px"><div class="barbg"><div class="bar" style="width:'+(v.net/max*100)+'%"></div></div><b>'+usd(v.net)+'</b></div></td><td>'+Math.round(v.net/tot*100)+'%</td></tr>').join('');
+  return '<h1>Sales by Country</h1><div class="cap">'+active.label+' · net revenue</div><div class="card"><table><tr><th>Country</th><th>Orders</th><th>Revenue</th><th>% Rev</th></tr>'+rows+'</table></div>';
+}
+async function pageStrategy(){
+  const [l30,l7]=await Promise.all([getRange(...PRESETS['Last 30 Days']),getRange(...PRESETS['Last 7 Days'])]);
+  const d=await getRange(active.start,active.end,active.st,active.et);
+  const scale=[],fix=[],refresh=[],struct=[];
+  // creatives to scale (converting, high ROAS)
+  (d.creatives||[]).filter(c=>c.buys>0&&c.roas>=1.75).sort((a,b)=>b.roas-a.roas).slice(0,3).forEach(c=>scale.push([clean(c.name).substring(0,34),'Winning creative at '+c.roas.toFixed(1)+'x ('+c.buys+' buys). Feed into the biird ABO test — HK$200/day, ~20 creatives.']));
+  // LPs to scale
+  (d.landing||[]).filter(l=>l.spend>0&&l.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2).forEach(l=>scale.push([clean(l.name).substring(0,30),'Best LP at '+l.roas.toFixed(2)+'x — shift budget here and route paid traffic through it.']));
+  // campaigns to fix
+  (d.campaigns||[]).filter(c=>c.spend>0&&c.roas<1.2).sort((a,b)=>b.spend-a.spend).forEach(c=>fix.push([clean(c.name).substring(0,34),'Spending '+usdH(c.spend)+' at '+c.roas.toFixed(2)+'x. Rework creative/LP toward the winning funnel, or cut before it spends more.']));
+  // creatives to cut (spend but no/low buys)
+  const wasteful=(d.creatives||[]).filter(c=>c.spend>500&&c.buys===0);
+  if(wasteful.length)fix.push(['Studio shots with 0 purchases',wasteful.length+' creative(s) spent with no buys — pause and rebudget to editorial/lifestyle angles.']);
+  // refresh
+  refresh.push(['Aura Scream LP','Cooled from ~1.79x — refresh the hook/offer and re-test with the new editorial creatives.']);
+  refresh.push(['Competitor reframe','On the Scream LP, demote competitors below the 3 Nancy products they currently outrank.']);
+  // structural
+  if(l7.shop.retPct>10)struct.push(['Fulfillment backlog','Returns at '+l7.shop.retPct.toFixed(0)+'% (L7D) — clear the backlog; it caps volume and triggers chargeback/Shopify-flag risk.']);
+  struct.push(['Single ad account','Escalate a 2nd Meta Business Manager / ad account — one ban halts all paid acquisition.']);
+  // geo
+  const co=Object.entries(d.shop.countries).sort((a,b)=>b[1].net-a[1].net)[0];const tot=Object.values(d.shop.countries).reduce((a,c)=>a+c.net,0)||1;
+  if(co)scale.push(['Geo focus: '+co[0],co[0]+' is '+Math.round(co[1].net/tot*100)+'% of revenue — test '+co[0]+'-only ad sets for efficiency.']);
+  const sec=(title,icon,col,arr)=>'<div class="stratcard"><h2><span style="color:'+col+'">'+icon+'</span> '+title+'</h2>'+(arr.length?arr.map(i=>'<div class="sitem"><b style="color:'+col+'">'+i[0]+'</b>'+i[1]+'</div>').join(''):'<div class="sitem" style="color:#8A8392">Nothing flagged in this range.</div>')+'</div>';
+  return '<h1>Strategy & Next Steps</h1><div class="cap">Auto-generated from performance · range: '+active.label+' ('+active.start+'→'+active.end+') · change the date filter to re-prioritize</div>'+
+  '<div class="stratgrid">'+sec('Double Down','▲','#1F9D6B',scale)+sec('Fix or Cut','■','#DB3B3B',fix)+sec('Refresh / Test','◆','#E0922F',refresh)+sec('Structural Unblocks','⬢','#8E2F4C',struct)+'</div>';
+}
+const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy};
+let current='overview';
+async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}
+document.querySelectorAll('.navitem').forEach(n=>n.onclick=()=>{document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));n.classList.add('active');current=n.dataset.p;render();});
+renderDatebar();render();
+</script></body></html>
