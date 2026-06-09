@@ -1,8 +1,10 @@
-// Nancy Finds â€” live dashboard server. Run: node server.js  â†’ open http://localhost:4321
+// Nancy Finds - live dashboard server. Local: node server.js -> http://localhost:4321
 const http=require('http'), https=require('https'), fs=require('fs'), path=require('path');
 let meta=null; try{meta=require('./meta_ads');}catch(e){} // direct Meta = failover source
-const DIR=__dirname, FX=7.8, PORT=4321;
+const DIR=__dirname, FX=7.8, PORT=process.env.PORT||4321;
 const {SHOP_TOKEN,SHOP,GLUED_KEY,WS}=require('./config');
+// Optional password gate (set DASH_USER & DASH_PASS env vars on the host). Off locally if unset.
+const AUTH=(process.env.DASH_USER&&process.env.DASH_PASS)?('Basic '+Buffer.from(process.env.DASH_USER+':'+process.env.DASH_PASS).toString('base64')):null;
 
 const IMGDIR=DIR+'/creative_imgs'; if(!fs.existsSync(IMGDIR))fs.mkdirSync(IMGDIR);
 
@@ -51,6 +53,7 @@ async function getRange(sd,ed,st,et){const timed=!!(st&&et);const k=sd+'_'+ed+'_
 const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.json':'application/json'};
 http.createServer(async (req,res)=>{
   const u=new URL(req.url,'http://x');
+  if(AUTH && (req.headers.authorization||'')!==AUTH){res.writeHead(401,{'WWW-Authenticate':'Basic realm="Nancy Finds Weekly"'});return res.end('Authentication required');}
   try{
     if(u.pathname==='/'||u.pathname==='/index.html'){const h=fs.readFileSync(DIR+'/index.html');res.writeHead(200,{'Content-Type':'text/html'});return res.end(h);}
     if(u.pathname.startsWith('/creative_imgs/')){const fp=DIR+decodeURIComponent(u.pathname);if(fs.existsSync(fp)){res.writeHead(200,{'Content-Type':MIME[path.extname(fp)]||'application/octet-stream'});return res.end(fs.readFileSync(fp));}res.writeHead(404);return res.end();}

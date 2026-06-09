@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: nancyfindsweekly
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: SHOP_TOKEN
+        sync: false
+      - key: SHOP
+        sync: false
+      - key: GLUED_KEY
+        sync: false
+      - key: WS
+        sync: false
+      - key: META_TOKEN
+        sync: false
+      - key: DASH_USER
+        sync: false
+      - key: DASH_PASS
+        sync: false

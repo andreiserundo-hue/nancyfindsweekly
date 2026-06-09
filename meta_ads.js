@@ -9,7 +9,8 @@ const ACCOUNT = 'act_943074264794521'; // Nancy Finds (from Glued workspace)
 const TOKEN_FILE = path.join(__dirname, 'meta_token.txt');
 
 function token(){
-  if(!fs.existsSync(TOKEN_FILE)) throw new Error('No meta_token.txt — paste a Meta token (ads_read) into that file first.');
+  if(process.env.META_TOKEN) return process.env.META_TOKEN.trim();
+  if(!fs.existsSync(TOKEN_FILE)) throw new Error('No Meta token - set META_TOKEN env var or paste into meta_token.txt');
   return fs.readFileSync(TOKEN_FILE,'utf8').trim();
 }
 function gget(p){return new Promise((res,rej)=>{https.get('https://graph.facebook.com/'+API+p,r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>{let j;try{j=JSON.parse(b);}catch(e){return rej(new Error('bad json: '+b.slice(0,200)));}if(j.error)return rej(new Error(j.error.message));res(j);});}).on('error',rej);});}
