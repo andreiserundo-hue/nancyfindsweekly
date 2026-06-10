@@ -14,3 +14,4 @@ benchmarks.json
 *.pptx
 *.output
 _*.js
+_cmsg.txt
