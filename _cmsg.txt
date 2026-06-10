@@ -1,0 +1,11 @@
+Editable + auto-laddering scorecard benchmarks
+
+- Scorecard targets (Good/Better/Best) are now editable inline ("Edit
+  targets" -> Save / Cancel / Reset to defaults), persisted to benchmarks.json
+- Auto-upgrade: when a metric's L7D value hits Best, the row highlights and
+  shows a "hit - upgrade" badge that ladders the whole scale up (down-metrics
+  tighten); not reached -> benchmark stays put
+- Direction-aware tagging (up vs down metrics) for dots and target display
+- server.js: GET/PUT /api/benchmarks persisted to benchmarks.json
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>

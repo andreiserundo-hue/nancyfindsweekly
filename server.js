@@ -13,6 +13,10 @@ const TASKS_FILE=DIR+'/tasks.json';
 function loadTasks(){try{return JSON.parse(fs.readFileSync(TASKS_FILE,'utf8'));}catch(e){return [];}}
 function saveTasks(t){try{fs.writeFileSync(TASKS_FILE,JSON.stringify(t,null,2));}catch(e){}}
 function readBody(req){return new Promise(r=>{let b='';req.on('data',c=>{b+=c;if(b.length>1e5)req.destroy();});req.on('end',()=>{try{r(JSON.parse(b||'{}'));}catch(e){r({});}});});}
+// ---- editable scorecard benchmarks (persisted) ----
+const BENCH_FILE=DIR+'/benchmarks.json';
+function loadBench(){try{return JSON.parse(fs.readFileSync(BENCH_FILE,'utf8'));}catch(e){return null;}}
+function saveBench(b){try{fs.writeFileSync(BENCH_FILE,JSON.stringify(b,null,2));}catch(e){}}
 
 function isoHK(d){return new Date(d.getTime()+8*3600*1000).toISOString().slice(0,10);}
 function addDay(s){const d=new Date(s+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);} // Glued end-date is EXCLUSIVE (next-day 00:00)
@@ -71,6 +75,10 @@ http.createServer(async (req,res)=>{
       if(req.method==='POST'){const bd=await readBody(req);const text=(bd.text||'').toString().trim().slice(0,200);if(!text){res.writeHead(400,{'Content-Type':'application/json'});return res.end('{"error":"empty"}');}const task={id:'t'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36),text,done:false,ts:Date.now()};const t=loadTasks();t.unshift(task);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(task));}
       if(req.method==='PATCH'){const bd=await readBody(req);const id=u.searchParams.get('id');const t=loadTasks().map(x=>x.id===id?{...x,done:!!bd.done}:x);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
       if(req.method==='DELETE'){const id=u.searchParams.get('id');saveTasks(loadTasks().filter(x=>x.id!==id));res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+    }
+    if(u.pathname==='/api/benchmarks'){
+      if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadBench()||{}));}
+      if(req.method==='PUT'){const bd=await readBody(req);saveBench(bd);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
     }
     res.writeHead(404);res.end('not found');
   }catch(e){res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:String(e&&e.message||e)}));}

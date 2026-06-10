@@ -119,6 +119,12 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .trow.done span{text-decoration:line-through;color:#A99FB0}
 .del{background:none;border:0;color:#D6CCDD;font-size:20px;cursor:pointer;line-height:1;padding:0 4px}.del:hover{color:#DB3B3B}
 .empty{color:#A99FB0;font-style:italic;font-size:12.5px;padding:8px 4px}
+/* scorecard editing */
+.upbadge{display:inline-block;background:#E4F0EC;color:#1F9D6B;font-weight:700;font-size:10.5px;padding:4px 9px;border-radius:9px;cursor:pointer;white-space:nowrap;transition:.15s}
+.upbadge:hover{background:#1F9D6B;color:#fff}
+tr.reached td{background:#F2FAF6 !important}
+.bedit{width:60px;border:1px solid #C9BFD0;border-radius:6px;padding:4px 6px;font-size:12px;text-align:right;transition:border-color .15s}
+.bedit:focus{outline:none;border-color:#C44B6E;box-shadow:0 0 0 2px rgba(196,75,110,.12)}
 </style></head><body>
 <div class="nav">
   <div class="brand">Nancy Finds<small>LIVE DASHBOARD</small></div>
@@ -210,22 +216,49 @@ function shoots(l7){const cre=(l7.creatives||[]).filter(x=>x.roas>1.5).sort((a,b
   cre.forEach(a=>h+='<div class="note" style="background:#E4F0EC">'+(a.img?'<img src="'+a.img+'">':'')+'<span>🟢 <b>Winning creative:</b> '+clean(a.name).substring(0,28)+' — '+a.roas.toFixed(0)+'x</span></div>');
   h+='<div class="note">🔴 <b>Watch:</b> campaigns below 1.5x; spend throttled for backlog (returns '+l7.shop.retPct.toFixed(0)+'%).</div>';return h;}
 
+// editable, auto-laddering benchmarks
+const SCMETRICS=[
+ {key:'rev',label:'Revenue / day',dir:'up',fmt:'usd',circ:true},
+ {key:'spend',label:'Meta Spend / day',dir:'up',fmt:'usd',circ:false},
+ {key:'spendPct',label:'Spend % of rev',dir:'down',fmt:'pct',circ:false},
+ {key:'ord',label:'Orders / day',dir:'up',fmt:'num',circ:false},
+ {key:'ret',label:'Return %',dir:'down',fmt:'pct1',circ:false},
+ {key:'meta',label:'Meta ROAS',dir:'up',fmt:'roas',circ:true},
+ {key:'true',label:'True ROAS (net)',dir:'up',fmt:'roas',circ:true}];
+const DEFBM={rev:{g:1000,b:1500,x:2000},spend:{g:667,b:857,x:1000},spendPct:{g:67,b:57,x:50},ord:{g:17,b:25,x:33},ret:{g:4,b:3,x:2},meta:{g:1.5,b:1.75,x:2.0},'true':{g:1.5,b:1.75,x:2.0}};
+function normBM(b){const o={};SCMETRICS.forEach(m=>{const d=DEFBM[m.key],v=(b&&b[m.key])||{};o[m.key]={g:isNaN(+v.g)?d.g:+v.g,b:isNaN(+v.b)?d.b:+v.b,x:isNaN(+v.x)?d.x:+v.x};});return o;}
+function fmtB(t,v){if(t==='usd')return '$'+Math.round(v).toLocaleString();if(t==='pct')return Math.round(v)+'%';if(t==='pct1')return (Math.round(v*10)/10)+'%';if(t==='roas')return (+v).toFixed(2);return Math.round(v);}
+function dotD(dir,v,g,x){const green=dir==='up'?v>=x:v<=x,amber=dir==='up'?v>=g:v<=g;return '<span class="dot" style="color:'+(green?'#1F9D6B':(amber?'#E0922F':'#DB3B3B'))+'">●</span>';}
+function roundNice(v,fmt){if(fmt==='roas')return Math.round(v*100)/100;if(fmt==='usd')return Math.round(v/10)*10;return Math.round(v*10)/10;}
+let scBench=null, scEdit=false;
 async function pageScorecard(){
-  const [l30,l7,yd]=await Promise.all([getRange(...PRESETS['Last 30 Days']),getRange(...PRESETS['Last 7 Days']),getRange(YEST,YEST)]);
+  const [l30,l7,yd,bench]=await Promise.all([getRange(...PRESETS['Last 30 Days']),getRange(...PRESETS['Last 7 Days']),getRange(YEST,YEST),fetch('/api/benchmarks').then(x=>x.json()).catch(()=>null)]);
+  scBench=normBM(bench);
   const D={L30D:[l30,30],L7D:[l7,7],Yesterday:[yd,1]};
   const m=(r,days,key)=>{const s=r.shop;const sp=r.meta.spendUSD;switch(key){case'rev':return s.net/days;case'spend':return sp/days;case'spendPct':return s.net>0?sp/s.net*100:0;case'ord':return s.orders/days;case'ret':return s.retPct;case'meta':return r.meta.metaRoas;case'true':return r.trueRoas;}};
-  const row=(label,fmt,key,circ,g,b,peach,t)=>'<tr class="'+(peach?'peach':'')+'"><td class="lh">'+label+'</td>'+['L30D','L7D','Yesterday'].map(k=>{const v=m(D[k][0],D[k][1],key);return '<td>'+fmt(v)+(circ?' '+dot(v,g,b):'')+'</td>';}).join('')+'<td class="tg">'+t[0]+'</td><td class="tg">'+t[1]+'</td><td class="tg">'+t[2]+'</td></tr>';
-  return '<h1>Overall Scorecard</h1><div class="cap">Daily averages, USD · standing windows · ● green ≥ Better · amber ≥ Good · red below target</div><div class="card"><table>'+
-  '<tr><th>Metric</th><th>L30D</th><th>L7D</th><th>Yest</th><th class="tgh">Good</th><th class="tgh">Better</th><th class="tgh">Best</th></tr>'+
-  row('Revenue / day',usd,'rev',true,1000,2000,true,['$1,000','$1,500','$2,000'])+
-  row('Meta Spend / day',usd,'spend',false,0,0,false,['$667','$857','$1,000'])+
-  row('Spend % of rev',v=>v.toFixed(0)+'%','spendPct',false,0,0,false,['<67%','<57%','<50%'])+
-  row('Orders / day',v=>v.toFixed(1),'ord',false,0,0,false,['17','25','33'])+
-  row('Return %',v=>v.toFixed(1)+'%','ret',false,0,0,false,['<4%','<3%','<2%'])+
-  row('Meta ROAS',v=>v.toFixed(2),'meta',true,1.5,2.0,true,['1.50','1.75','2.00'])+
-  row('True ROAS (net)',v=>v.toFixed(2),'true',true,1.5,2.0,true,['1.50','1.75','2.00'])+
-  '</table></div>';
+  const rows=SCMETRICS.map(mt=>{const b=scBench[mt.key];
+    const vals=['L30D','L7D','Yesterday'].map(k=>m(D[k][0],D[k][1],mt.key));const l7v=vals[1];
+    const reached=mt.dir==='up'?l7v>=b.x:(l7v>0&&l7v<=b.x);
+    const cells=vals.map(v=>'<td>'+fmtB(mt.fmt,v)+(mt.circ?' '+dotD(mt.dir,v,b.g,b.x):'')+'</td>').join('');
+    let tcells;
+    if(scEdit){const inp=t=>'<td class="tg"><input class="bedit" data-m="'+mt.key+'" data-t="'+t+'" value="'+b[t]+'"></td>';tcells=inp('g')+inp('b')+inp('x');}
+    else tcells=['g','b','x'].map(t=>'<td class="tg">'+(mt.dir==='down'?'≤':'')+fmtB(mt.fmt,b[t])+'</td>').join('');
+    const status=scEdit?'<td></td>':(reached?'<td><span class="upbadge" onclick="upgradeBench(\''+mt.key+'\')">🎯 hit · upgrade ⬆</span></td>':'<td></td>');
+    return '<tr class="'+(mt.circ?'peach':'')+(reached&&!scEdit?' reached':'')+'"><td class="lh">'+mt.label+'</td>'+cells+tcells+status+'</tr>';}).join('');
+  const editBar=scEdit
+    ?'<button class="addbtn solid" onclick="saveBench()">Save targets</button> <button class="addbtn" onclick="scEdit=false;render()">Cancel</button> <button class="addbtn" onclick="resetBench()">Reset to defaults</button>'
+    :'<button class="addbtn" onclick="scEdit=true;render()">✎ Edit targets</button>';
+  return '<h1>Overall Scorecard</h1><div class="cap">Daily averages, USD · standing windows · ● green ≥ Best · amber ≥ Good · red below · 🎯 = L7D hit Best → click to ladder targets up</div>'+
+   '<div class="card"><div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">'+editBar+'</div><table>'+
+   '<tr><th>Metric</th><th>L30D</th><th>L7D</th><th>Yest</th><th class="tgh">Good</th><th class="tgh">Better</th><th class="tgh">Best</th><th></th></tr>'+
+   rows+'</table></div>';
 }
+async function saveBench(){const b=JSON.parse(JSON.stringify(scBench));document.querySelectorAll('.bedit').forEach(i=>{const v=parseFloat(i.value);if(!isNaN(v))b[i.dataset.m][i.dataset.t]=v;});await fetch('/api/benchmarks',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});scEdit=false;render();}
+async function resetBench(){await fetch('/api/benchmarks',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(DEFBM)});scEdit=false;render();}
+async function upgradeBench(key){const mt=SCMETRICS.find(x=>x.key===key);const b=JSON.parse(JSON.stringify(scBench)),o=b[key];
+  if(mt.dir==='up'){const step=Math.max(o.x-o.b,o.b-o.g)||o.x*0.1;b[key]={g:o.b,b:o.x,x:roundNice(o.x+step,mt.fmt)};}
+  else{const step=Math.max(o.b-o.x,o.g-o.b)||o.x*0.1;b[key]={g:o.b,b:o.x,x:Math.max(roundNice(o.x-step,mt.fmt),0)};}
+  await fetch('/api/benchmarks',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});render();}
 async function pageCampaigns(){const d=await getRange(active.start,active.end,active.st,active.et);
   const rows=d.campaigns.filter(c=>c.spend>0).map(c=>{const t=tier(c.roas);return '<tr><td class="lh">'+clean(c.name).substring(0,56)+'</td><td>'+usdH(c.spend)+'</td><td style="color:'+rc(c.roas)+';font-weight:700;font-size:15px">'+c.roas.toFixed(2)+'</td><td>'+c.buys+'</td><td><span class="pill" style="background:'+t[1]+'">'+t[0]+'</span></td></tr>';}).join('');
   return '<h1>Campaign Analysis</h1><div class="cap">'+active.label+' ('+active.start+'→'+active.end+') · SCALE ≥2.1 · HOLD 1.6–2.0 · CUT ≤1.5 · source: '+(d.source||'glued')+'</div><div class="card"><table><tr><th>Campaign</th><th>Spend</th><th>ROAS</th><th>Buys</th><th>Tier</th></tr>'+(rows||'<tr><td class="lh">No spend in range</td></tr>')+'</table></div>';

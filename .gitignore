@@ -10,6 +10,7 @@ creative_imgs/
 dashboard.html
 dashboard_data.json
 tasks.json
+benchmarks.json
 *.pptx
 *.output
 _*.js
