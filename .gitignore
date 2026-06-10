@@ -9,6 +9,7 @@ node_modules/
 creative_imgs/
 dashboard.html
 dashboard_data.json
+tasks.json
 *.pptx
 *.output
 _*.js

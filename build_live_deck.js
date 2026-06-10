@@ -60,7 +60,7 @@ module.exports=function(l30,l7,yd,outPath){
   (()=>{const s=pptx.addSlide();s.background={color:C.dark};
     s.addText("STRATEGY & NEXT STEPS",{x:0.6,y:0.5,w:12,h:0.4,fontFace:FB,fontSize:12,bold:true,color:C.berry,charSpacing:2});
     s.addText("Based on live L7D performance",{x:0.6,y:0.85,w:12,h:0.5,fontFace:FH,fontSize:26,bold:true,color:C.white});
-    const scale=l7.creatives.filter(c=>c.buys>0&&c.roas>=1.75).sort((a,b)=>b.roas-a.roas).slice(0,3).map(c=>'Scale '+clean(c.name).substring(0,30)+' ('+c.roas.toFixed(1)+'x) â†’ biird ABO test');
+    const scale=l7.creatives.filter(c=>c.buys>0&&c.roas>=1.75).sort((a,b)=>b.roas-a.roas).slice(0,3).map(c=>'Scale '+clean(c.name).substring(0,30)+' ('+c.roas.toFixed(1)+'x) â†’ ABO creative-test');
     const lpw=l7.landing.filter(l=>l.spend>0&&l.roas>=1.5).sort((a,b)=>b.roas-a.roas)[0];if(lpw)scale.push('Shift budget to '+clean(lpw.name).substring(0,28)+' ('+lpw.roas.toFixed(2)+'x)');
     const fix=l7.campaigns.filter(c=>c.spend>0&&c.roas<1.2).map(c=>'Fix/cut '+clean(c.name).substring(0,30)+' ('+c.roas.toFixed(2)+'x)');
     const struct=['Clear fulfillment backlog (returns '+l7.shop.retPct.toFixed(0)+'% L7D)','Escalate 2nd Meta Business Manager / ad account','Refresh the Aura Scream LP + competitor reframe'];

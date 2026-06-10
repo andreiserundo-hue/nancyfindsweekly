@@ -84,6 +84,41 @@ th:nth-child(5),td:nth-child(5){border-left:2px solid #E7DFE4}
 .mclose{position:absolute;top:24px;right:34px;color:#fff;font-size:30px;cursor:pointer;font-weight:300}
 .mrow{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F4EEF1;font-size:13px}.mrow b{color:#8A8392;font-weight:600}
 .hbar{display:flex;align-items:flex-end;gap:4px;height:150px;margin:10px 0}
+/* ---- UI/UX polish: smoother everything ---- */
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.navitem{transition:background .18s,color .18s,border-color .18s}
+.pbtn,.dlbtn,.addbtn,.del{transition:background .18s,color .18s,border-color .18s,box-shadow .18s,transform .12s}
+.pbtn:hover{border-color:#C44B6E;color:#C44B6E}.dlbtn:hover{filter:brightness(1.07)}
+.datebar input,.addrow input{transition:border-color .15s,box-shadow .15s}
+.datebar input:focus,.addrow input:focus{outline:none;border-color:#C44B6E;box-shadow:0 0 0 3px rgba(196,75,110,.12)}
+.card,.stratcard{transition:box-shadow .22s,transform .22s}
+.card:hover,.stratcard:hover{box-shadow:0 8px 26px rgba(26,20,48,.10)}
+.kpi,.gp-wc,.gp-phase{transition:transform .18s,box-shadow .18s}
+.kpi:hover,.gp-wc:hover{transform:translateY(-2px)}
+.main{scroll-behavior:smooth}
+#view{animation:fadeUp .28s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ccard{transition:transform .15s,box-shadow .15s}.ccard:hover{transform:translateY(-4px);box-shadow:0 10px 26px rgba(26,20,48,.22)}
+.modal{backdrop-filter:blur(2px)}
+.mbox{animation:fadeUp .2s ease}
+/* ---- task board ---- */
+.sug{padding:12px 14px;border:1px solid #F0E6EC;border-radius:11px;margin-bottom:10px;transition:box-shadow .15s,transform .12s}
+.sug:hover{box-shadow:0 4px 14px rgba(196,75,110,.12);transform:translateY(-1px)}
+.sug-t{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.6px}
+.sdot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.sug-d{font-size:13px;color:#1A1430;margin:6px 0 10px;line-height:1.45}
+.addbtn{background:#F4EEF1;border:0;color:#8E2F4C;font-weight:700;font-size:12px;border-radius:8px;padding:7px 13px;cursor:pointer}
+.addbtn:hover{background:#C44B6E;color:#fff}.addbtn.solid{background:#C44B6E;color:#fff}.addbtn.solid:hover{filter:brightness(1.08)}
+.addrow{display:flex;gap:8px;margin:6px 0 8px}
+.addrow input{flex:1;border:1px solid #E7DFE4;border-radius:9px;padding:10px 13px;font-size:13.5px}
+.tlabel{font-size:10px;letter-spacing:1px;color:#8A8392;font-weight:700;margin:16px 0 4px}
+.trow{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:9px;transition:background .15s}
+.trow:hover{background:#FBF7F9}
+.trow label{display:flex;align-items:center;gap:11px;font-size:13.5px;cursor:pointer;flex:1;line-height:1.35}
+.trow input[type=checkbox]{width:18px;height:18px;accent-color:#1F9D6B;cursor:pointer;flex-shrink:0}
+.trow.done span{text-decoration:line-through;color:#A99FB0}
+.del{background:none;border:0;color:#D6CCDD;font-size:20px;cursor:pointer;line-height:1;padding:0 4px}.del:hover{color:#DB3B3B}
+.empty{color:#A99FB0;font-style:italic;font-size:12.5px;padding:8px 4px}
 </style></head><body>
 <div class="nav">
   <div class="brand">Nancy Finds<small>LIVE DASHBOARD</small></div>
@@ -140,7 +175,7 @@ function nextSteps(tab,d){
   let items=[];
   if(tab==='overview'||tab==='campaigns'){const c=(d&&d.campaigns)||[];c.filter(x=>x.spend>0&&x.roas<1.5).forEach(x=>items.push(['FIX',clean(x.name).substring(0,40)+' at '+x.roas.toFixed(2)+'x — rework creative/LP toward the winning funnel before adding budget.']));}
   if(tab==='landing'){const l=(d&&d.landing)||[];const w=l.filter(x=>x.roas>=1.5).sort((a,b)=>b.roas-a.roas)[0];if(w)items.push(['SCALE','Shift budget to '+clean(w.name).substring(0,34)+' ('+w.roas.toFixed(2)+'x) — your best LP this range.']);items.push(['REFRESH','Aura Scream LP cooled — refresh hook/offer and re-test with the new editorial creatives.']);}
-  if(tab==='creatives'){const cr=(d&&d.creatives)||[];const w=cr.filter(x=>x.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2);w.forEach(x=>items.push(['DOUBLE DOWN',clean(x.name).substring(0,36)+' ('+x.roas.toFixed(0)+'x) — feed into the biird ABO test (HK$200/day, 20 creatives).']));items.push(['CUT','Pause studio shots running sub-0.7x; rebudget to editorial/lifestyle angles.']);}
+  if(tab==='creatives'){const cr=(d&&d.creatives)||[];const w=cr.filter(x=>x.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2);w.forEach(x=>items.push(['DOUBLE DOWN',clean(x.name).substring(0,36)+' ('+x.roas.toFixed(0)+'x) — feed into the ABO creative-test (HK$200/day, 20 creatives).']));items.push(['CUT','Pause studio shots running sub-0.7x; rebudget to editorial/lifestyle angles.']);}
   if(tab==='products'){items.push(['FOCUS','Keep spend on the suction line (Blossom Duo + Vine + Eclipse) — 84% of units.']);items.push(['STOCK','Stock/approve the reserved demand (Mushroom Cloud, Pebble Rose) to unlock held orders.']);}
   if(tab==='countries'){items.push(['GEO-WEIGHT','Test US-only ad sets — US is ~65% of revenue; trim low-converting geos from Top-15.']);}
   if(tab==='scorecard'||tab==='overview'){items.push(['UNBLOCK','Clear the fulfillment backlog — it is capping volume and driving refunds.']);items.push(['ESCALATE','Push Meta to approve a 2nd Business Manager / ad account (single-account risk).']);}
@@ -242,31 +277,39 @@ async function pageCountries(){const d=await getRange(active.start,active.end,ac
   return '<h1>Sales by Country</h1><div class="cap">'+active.label+' · net revenue</div><div class="card"><table><tr><th>Country</th><th>Orders</th><th>Revenue</th><th>% Rev</th></tr>'+rows+'</table></div>';
 }
 async function pageStrategy(){
-  const [l30,l7]=await Promise.all([getRange(...PRESETS['Last 30 Days']),getRange(...PRESETS['Last 7 Days'])]);
-  const d=await getRange(active.start,active.end,active.st,active.et);
-  const scale=[],fix=[],refresh=[],struct=[];
-  // creatives to scale (converting, high ROAS)
-  (d.creatives||[]).filter(c=>c.buys>0&&c.roas>=1.75).sort((a,b)=>b.roas-a.roas).slice(0,3).forEach(c=>scale.push([clean(c.name).substring(0,34),'Winning creative at '+c.roas.toFixed(1)+'x ('+c.buys+' buys). Feed into the biird ABO test — HK$200/day, ~20 creatives.']));
-  // LPs to scale
-  (d.landing||[]).filter(l=>l.spend>0&&l.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2).forEach(l=>scale.push([clean(l.name).substring(0,30),'Best LP at '+l.roas.toFixed(2)+'x — shift budget here and route paid traffic through it.']));
-  // campaigns to fix
-  (d.campaigns||[]).filter(c=>c.spend>0&&c.roas<1.2).sort((a,b)=>b.spend-a.spend).forEach(c=>fix.push([clean(c.name).substring(0,34),'Spending '+usdH(c.spend)+' at '+c.roas.toFixed(2)+'x. Rework creative/LP toward the winning funnel, or cut before it spends more.']));
-  // creatives to cut (spend but no/low buys)
+  const [l7,d,tasks]=await Promise.all([getRange(...PRESETS['Last 7 Days']),getRange(active.start,active.end,active.st,active.et),fetch('/api/tasks').then(x=>x.json()).catch(()=>[])]);
+  const sug=[];
+  (d.creatives||[]).filter(c=>c.buys>0&&c.roas>=1.75).sort((a,b)=>b.roas-a.roas).slice(0,3).forEach(c=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Scale '+clean(c.name).substring(0,30)+' ('+c.roas.toFixed(1)+'x, '+c.buys+' buys) into the ABO creative-test (HK$200/day, ~20 creatives).'}));
+  (d.landing||[]).filter(l=>l.spend>0&&l.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2).forEach(l=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Shift budget to '+clean(l.name).substring(0,30)+' ('+l.roas.toFixed(2)+'x) and route paid traffic through it.'}));
+  (d.campaigns||[]).filter(c=>c.spend>0&&c.roas<1.2).sort((a,b)=>b.spend-a.spend).forEach(c=>sug.push({c:'#DB3B3B',cat:'FIX / CUT',t:'Rework or cut '+clean(c.name).substring(0,30)+' — '+usdH(c.spend)+' at '+c.roas.toFixed(2)+'x. Move toward the winning funnel or stop the bleed.'}));
   const wasteful=(d.creatives||[]).filter(c=>c.spend>500&&c.buys===0);
-  if(wasteful.length)fix.push(['Studio shots with 0 purchases',wasteful.length+' creative(s) spent with no buys — pause and rebudget to editorial/lifestyle angles.']);
-  // refresh
-  refresh.push(['Aura Scream LP','Cooled from ~1.79x — refresh the hook/offer and re-test with the new editorial creatives.']);
-  refresh.push(['Competitor reframe','On the Scream LP, demote competitors below the 3 Nancy products they currently outrank.']);
-  // structural
-  if(l7.shop.retPct>10)struct.push(['Fulfillment backlog','Returns at '+l7.shop.retPct.toFixed(0)+'% (L7D) — clear the backlog; it caps volume and triggers chargeback/Shopify-flag risk.']);
-  struct.push(['Single ad account','Escalate a 2nd Meta Business Manager / ad account — one ban halts all paid acquisition.']);
-  // geo
+  if(wasteful.length)sug.push({c:'#DB3B3B',cat:'FIX / CUT',t:'Pause '+wasteful.length+' creative(s) spending with 0 purchases; rebudget to editorial/lifestyle angles.'});
   const co=Object.entries(d.shop.countries).sort((a,b)=>b[1].net-a[1].net)[0];const tot=Object.values(d.shop.countries).reduce((a,c)=>a+c.net,0)||1;
-  if(co)scale.push(['Geo focus: '+co[0],co[0]+' is '+Math.round(co[1].net/tot*100)+'% of revenue — test '+co[0]+'-only ad sets for efficiency.']);
-  const sec=(title,icon,col,arr)=>'<div class="stratcard"><h2><span style="color:'+col+'">'+icon+'</span> '+title+'</h2>'+(arr.length?arr.map(i=>'<div class="sitem"><b style="color:'+col+'">'+i[0]+'</b>'+i[1]+'</div>').join(''):'<div class="sitem" style="color:#8A8392">Nothing flagged in this range.</div>')+'</div>';
-  return '<h1>Strategy & Next Steps</h1><div class="cap">Auto-generated from performance · range: '+active.label+' ('+active.start+'→'+active.end+') · change the date filter to re-prioritize</div>'+
-  '<div class="stratgrid">'+sec('Double Down','▲','#1F9D6B',scale)+sec('Fix or Cut','■','#DB3B3B',fix)+sec('Refresh / Test','◆','#E0922F',refresh)+sec('Structural Unblocks','⬢','#8E2F4C',struct)+'</div>';
+  if(co)sug.push({c:'#1F9D6B',cat:'GEO',t:co[0]+' is '+Math.round(co[1].net/tot*100)+'% of revenue — test '+co[0]+'-only ad sets for efficiency.'});
+  sug.push({c:'#E0922F',cat:'REFRESH',t:'Refresh the Aura Scream LP hook/offer (cooled from ~1.79x) and re-test with the new editorial creatives.'});
+  sug.push({c:'#E0922F',cat:'REFRESH',t:'On the Scream LP, demote competitors below the 3 Nancy products they currently outrank.'});
+  if(l7.shop.retPct>10)sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Clear the fulfillment backlog (returns '+l7.shop.retPct.toFixed(0)+'% L7D) — it caps volume and triggers chargeback/Shopify-flag risk.'});
+  sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Escalate a 2nd Meta Business Manager / ad account — one ban halts all paid acquisition.'});
+  window._sug=sug;
+  const sugHtml=sug.map((s,i)=>'<div class="sug"><div class="sug-t"><span class="sdot" style="background:'+s.c+'"></span><b style="color:'+s.c+'">'+s.cat+'</b></div><div class="sug-d">'+s.t+'</div><button class="addbtn" onclick="addSug('+i+')">+ Add to board</button></div>').join('');
+  const open=tasks.filter(t=>!t.done), done=tasks.filter(t=>t.done);
+  const openHtml=open.length?open.map(taskRow).join(''):'<div class="empty">No open tasks — add one above or from a suggestion.</div>';
+  const doneHtml=done.length?done.map(taskRow).join(''):'<div class="empty">Nothing completed yet.</div>';
+  return '<h1>Strategy &amp; Next Steps</h1><div class="cap">Suggestions auto-update with the date filter ('+active.label+') · your action board is shared with the team</div>'+
+  '<div class="stratgrid">'+
+  '<div class="stratcard"><h2>💡 Suggested Actions</h2><div class="sub2">'+active.label+' ('+active.start+'→'+active.end+') · click + to add to the board</div>'+sugHtml+'</div>'+
+  '<div class="stratcard"><h2>✅ Action Board</h2><div class="sub2">add your own next steps, check them off, delete what no longer fits</div>'+
+    '<div class="addrow"><input id="newtask" maxlength="200" placeholder="Add a next step…" onkeydown="if(event.key===\'Enter\')addTask()"><button class="addbtn solid" onclick="addTask()">Add</button></div>'+
+    '<div class="tlabel">OPEN ('+open.length+')</div><div>'+openHtml+'</div>'+
+    '<div class="tlabel">COMPLETED ('+done.length+')</div><div>'+doneHtml+'</div>'+
+  '</div></div>';
 }
+function taskRow(t){return '<div class="trow'+(t.done?' done':'')+'"><label><input type="checkbox" '+(t.done?'checked':'')+' onchange="toggleTask(\''+t.id+'\',this.checked)"><span>'+escapeHtml(t.text)+'</span></label><button class="del" onclick="delTask(\''+t.id+'\')" title="delete">×</button></div>';}
+function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+async function addTask(){const el=document.getElementById('newtask');const text=(el.value||'').trim();if(!text)return;el.value='';await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});render();}
+async function addSug(i){const s=window._sug[i];if(!s)return;await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'['+s.cat+'] '+s.t})});render();}
+async function toggleTask(id,done){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({done})});render();}
+async function delTask(id){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'DELETE'});render();}
 const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy};
 let current='overview';
 async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}

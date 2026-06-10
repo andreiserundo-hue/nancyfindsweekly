@@ -8,6 +8,12 @@ const AUTH=(process.env.DASH_USER&&process.env.DASH_PASS)?('Basic '+Buffer.from(
 
 const IMGDIR=DIR+'/creative_imgs'; if(!fs.existsSync(IMGDIR))fs.mkdirSync(IMGDIR);
 
+// ---- shared task board (persisted to tasks.json) ----
+const TASKS_FILE=DIR+'/tasks.json';
+function loadTasks(){try{return JSON.parse(fs.readFileSync(TASKS_FILE,'utf8'));}catch(e){return [];}}
+function saveTasks(t){try{fs.writeFileSync(TASKS_FILE,JSON.stringify(t,null,2));}catch(e){}}
+function readBody(req){return new Promise(r=>{let b='';req.on('data',c=>{b+=c;if(b.length>1e5)req.destroy();});req.on('end',()=>{try{r(JSON.parse(b||'{}'));}catch(e){r({});}});});}
+
 function isoHK(d){return new Date(d.getTime()+8*3600*1000).toISOString().slice(0,10);}
 function addDay(s){const d=new Date(s+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);} // Glued end-date is EXCLUSIVE (next-day 00:00)
 function num(x){return parseFloat(x||'0');}
@@ -60,6 +66,12 @@ http.createServer(async (req,res)=>{
     if(u.pathname==='/api/range'){const sd=u.searchParams.get('start'),ed=u.searchParams.get('end'),st=u.searchParams.get('st')||'',et=u.searchParams.get('et')||'';const d=await getRange(sd,ed,st,et);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(d));}
     if(u.pathname==='/api/hourly'){const date=u.searchParams.get('date');await gluedInit();const j=await gluedCall('query_campaign_hourly',{workspace_id:WS,date_range:'custom',start_date:date,end_date:addDay(date),metrics:['spend','revenue','roas','purchase_count']});res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(j||{rows:[]}));}
     if(u.pathname==='/api/pptx'){const now=new Date();const yd=isoHK(new Date(now-86400000)),l7=isoHK(new Date(now-7*86400000)),l30=isoHK(new Date(now-30*86400000));const [r30,r7,ry]=await Promise.all([getRange(l30,yd),getRange(l7,yd),getRange(yd,yd)]);const out=DIR+'/Nancy Finds - Weekly (live).pptx';await require('./build_live_deck')(r30,r7,ry,out);const buf=fs.readFileSync(out);res.writeHead(200,{'Content-Type':'application/vnd.openxmlformats-officedocument.presentationml.presentation','Content-Disposition':'attachment; filename="Nancy Finds - Weekly.pptx"'});return res.end(buf);}
+    if(u.pathname==='/api/tasks'){
+      if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadTasks()));}
+      if(req.method==='POST'){const bd=await readBody(req);const text=(bd.text||'').toString().trim().slice(0,200);if(!text){res.writeHead(400,{'Content-Type':'application/json'});return res.end('{"error":"empty"}');}const task={id:'t'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36),text,done:false,ts:Date.now()};const t=loadTasks();t.unshift(task);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(task));}
+      if(req.method==='PATCH'){const bd=await readBody(req);const id=u.searchParams.get('id');const t=loadTasks().map(x=>x.id===id?{...x,done:!!bd.done}:x);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+      if(req.method==='DELETE'){const id=u.searchParams.get('id');saveTasks(loadTasks().filter(x=>x.id!==id));res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+    }
     res.writeHead(404);res.end('not found');
   }catch(e){res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:String(e&&e.message||e)}));}
 }).listen(PORT,()=>console.log('Nancy Finds dashboard â†’ http://localhost:'+PORT));

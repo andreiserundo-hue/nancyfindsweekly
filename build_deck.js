@@ -148,7 +148,7 @@ let P=0;
   callout(s,y+0.5,1.5,[{text:"THE READ:  ",options:{bold:true,color:C.berryDk}},
     {text:"Both active campaigns are below the 1.5 CUT line on L7D â€” Aura 0.48x, NancyFinds 0.23x â€” though ",options:{color:C.ink}},
     {text:"Aura flickered to 1.33x yesterday",options:{bold:true,color:C.green}},
-    {text:". The real green shoots are a layer down: the nancy-bloom bridge (1.64x L7D) and two new editorial creatives. Next: rebuild the active campaigns around those winners and the biird ABO test before adding budget.",options:{color:C.ink}}]);
+    {text:". The real green shoots are a layer down: the nancy-bloom bridge (1.64x L7D) and two new editorial creatives. Next: rebuild the active campaigns around those winners and the ABO creative-test before adding budget.",options:{color:C.ink}}]);
   pageno(s,P);})();
 
 // 6 BRIDGE PAGES
@@ -231,7 +231,7 @@ let P=0;
     s.addText([{text:h.spend+"  ",options:{color:C.grayTx,fontSize:9}},{text:h.roas,options:{color:stc[h.st],bold:true,fontSize:12}}],{x:x+0.12,y:iy+ih+0.66,w:iw-0.24,h:0.3,fontFace:FB});
     s.addShape(S.roundRect,{x:x+0.12,y:iy+ih+1.0,w:1.5,h:0.3,fill:{color:stc[h.st]},line:{type:"none"},rectRadius:0.04});
     s.addText(h.st+" Â· "+h.buys+" buys",{x:x+0.12,y:iy+ih+1.0,w:1.9,h:0.3,fontFace:FB,fontSize:8.5,bold:true,color:C.white,valign:"middle",align:"left"});});
-  callout(s,6.35,0.85,[{text:"THE PATTERN:  ",options:{bold:true,color:C.berryDk}},{text:"The big studio shots ate most spend at sub-0.75x. The new editorial / lifestyle creatives (Stays With You, Fortune Cookie) hit 100x+ on pennies. ",options:{color:C.ink}},{text:"Feed budget to the new editorial winners via the biird ABO test.",options:{bold:true,color:C.ink}}]);
+  callout(s,6.35,0.85,[{text:"THE PATTERN:  ",options:{bold:true,color:C.berryDk}},{text:"The big studio shots ate most spend at sub-0.75x. The new editorial / lifestyle creatives (Stays With You, Fortune Cookie) hit 100x+ on pennies. ",options:{color:C.ink}},{text:"Feed budget to the new editorial winners via the ABO creative-test.",options:{bold:true,color:C.ink}}]);
   pageno(s,P);})();
 
 // 10 HELLO NANCY -> NANCY FINDS
@@ -260,7 +260,7 @@ let P=0;
   s.addText("THE ASSET (Hello Nancy)",{x:0.72,y:1.75,w:5.1,h:0.3,fontFace:FB,fontSize:11,bold:true,color:C.berryDk,charSpacing:1});
   s.addText('"7 Suction Toys So Good, You\'ll Want to Cheat"',{x:0.72,y:2.05,w:5.1,h:0.55,fontFace:FH,fontSize:15,bold:true,italic:true,color:C.ink});
   s.addText("zenify.today/article/7-best-suction-toys-for-women",{x:0.72,y:2.62,w:5.1,h:0.25,fontFace:FB,fontSize:9.5,italic:true,color:C.berry});
-  [["1","Lem â€” Hello Nancy",true],["2","Namii 2 â€” Biird",false],["3","Sona 2 â€” LELO",false],["4","Avo â€” Hello Nancy",true],["5","Satisfyer Pro 2",false],["6","Aer â€” Dame",false],["7","The Rose",false]].forEach((r,i)=>{const yy=3.0+i*0.36;s.addText([{text:r[0]+"  ",options:{bold:true,color:r[2]?C.berry:C.grayLt}},{text:r[1],options:{color:r[2]?C.ink:C.grayTx,bold:r[2]}}],{x:0.72,y:yy,w:5.1,h:0.34,fontFace:FB,fontSize:10.5,valign:"middle"});});
+  [["1","Lem â€” Hello Nancy",true],["2","Namii 2",false],["3","Sona 2 â€” LELO",false],["4","Avo â€” Hello Nancy",true],["5","Satisfyer Pro 2",false],["6","Aer â€” Dame",false],["7","The Rose",false]].forEach((r,i)=>{const yy=3.0+i*0.36;s.addText([{text:r[0]+"  ",options:{bold:true,color:r[2]?C.berry:C.grayLt}},{text:r[1],options:{color:r[2]?C.ink:C.grayTx,bold:r[2]}}],{x:0.72,y:yy,w:5.1,h:0.34,fontFace:FB,fontSize:10.5,valign:"middle"});});
   s.addText("All buy-links â†’ hellonancy.com. No Nancy Finds product on it yet.",{x:0.72,y:5.32,w:5.1,h:0.25,fontFace:FB,fontSize:9,italic:true,color:C.grayTx});
   s.addShape(S.roundRect,{x:6.3,y:1.6,w:6.5,h:4.0,fill:{color:C.dark},line:{type:"none"},rectRadius:0.06});
   s.addText("THE MOVE â€” EDITOR'S WILDCARD",{x:6.55,y:1.75,w:6,h:0.3,fontFace:FB,fontSize:11,bold:true,color:C.berry,charSpacing:1});
@@ -304,11 +304,11 @@ let P=0;
   s.addText([{text:"DIDN'T\n",options:{color:C.red,bold:true,fontSize:11}},{text:"Direct-to-PDP ads (Meta rejects) Â· 'Best 2026' listicle (0.08x) Â· studio product shots Â· backlog refunds (33% L7D)",options:{color:C.pinkLt,fontSize:10.5}}],{x:x1+0.25,y:y0+2.05,w:colW-0.5,h:1.4,fontFace:FB,valign:"top",lineSpacingMultiple:1.0});
   const x2=x1+colW+gap;s.addShape(S.roundRect,{x:x2,y:y0,w:colW,h,fill:{color:C.berryDk},line:{type:"none"},rectRadius:0.06});
   s.addText("WHAT'S NEXT",{x:x2+0.25,y:y0+0.16,w:colW-0.5,h:0.3,fontFace:FB,fontSize:12,bold:true,color:C.white,charSpacing:1});
-  ["Clear the shipment backlog first â€” stop the refund leak","Re-scale via winners: nancy-bloom LP + new editorial creatives","Refresh the Aura Scream LP (cooled to 0.49x)","Escalate the Meta BM / ad-account blocker","Run biird's ABO creative-testing setup (spec below)"].forEach((t,i)=>s.addText([{text:"â€º  ",options:{color:C.white,bold:true}},{text:t,options:{color:C.pinkLt}}],{x:x2+0.25,y:y0+0.55+i*0.56,w:colW-0.5,h:0.55,fontFace:FB,fontSize:10.5,valign:"top",lineSpacingMultiple:0.96}));
+  ["Clear the shipment backlog first â€” stop the refund leak","Re-scale via winners: nancy-bloom LP + new editorial creatives","Refresh the Aura Scream LP (cooled to 0.49x)","Escalate the Meta BM / ad-account blocker","Run the ABO creative-testing setup (spec below)"].forEach((t,i)=>s.addText([{text:"â€º  ",options:{color:C.white,bold:true}},{text:t,options:{color:C.pinkLt}}],{x:x2+0.25,y:y0+0.55+i*0.56,w:colW-0.5,h:0.55,fontFace:FB,fontSize:10.5,valign:"top",lineSpacingMultiple:0.96}));
   s.addShape(S.roundRect,{x:0.6,y:5.25,w:12.2,h:1.05,fill:{color:C.card2},line:{type:"none"},rectRadius:0.06});
-  s.addText("biird ABO TEST SETUP",{x:0.8,y:5.35,w:4,h:0.3,fontFace:FB,fontSize:11,bold:true,color:C.berry,charSpacing:1});
+  s.addText("ABO CREATIVE-TEST SETUP",{x:0.8,y:5.35,w:4,h:0.3,fontFace:FB,fontSize:11,bold:true,color:C.berry,charSpacing:1});
   s.addText([{text:"Each ad set = ",options:{color:C.pinkLt}},{text:"HK$200/day with ~20 creatives",options:{bold:true,color:C.white}},{text:". Kill any creative with ",options:{color:C.pinkLt}},{text:"0 purchases in 3 days",options:{bold:true,color:C.white}},{text:"; let winners run to ",options:{color:C.pinkLt}},{text:"5â€“7 days, then kill if ROAS < 1.5",options:{bold:true,color:C.white}},{text:".  Run across both domains â€” direct-to-website and via the Aura Scream LP.",options:{color:C.pinkLt}}],{x:0.8,y:5.65,w:11.8,h:0.6,fontFace:FB,fontSize:11.5,valign:"top",lineSpacingMultiple:1.05});
-  s.addText("DECISIONS NEEDED:  backlog clear-by date Â· approve post-backlog scale-up Â· greenlight biird ABO test Â· escalate Meta BM blocker",{x:0.6,y:6.5,w:12.2,h:0.5,fontFace:FB,fontSize:11,italic:true,color:C.grayLt});
+  s.addText("DECISIONS NEEDED:  backlog clear-by date Â· approve post-backlog scale-up Â· greenlight ABO creative-test Â· escalate Meta BM blocker",{x:0.6,y:6.5,w:12.2,h:0.5,fontFace:FB,fontSize:11,italic:true,color:C.grayLt});
   pageno(s,P);})();
 
 pptx.writeFile({fileName:DIR+"/Nancy Finds - Weekly Review.pptx"}).then(f=>console.log("WROTE:",f,"| slides:",P));
