@@ -112,7 +112,18 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .addrow{display:flex;gap:8px;margin:6px 0 8px}
 .addrow input{flex:1;border:1px solid #E7DFE4;border-radius:9px;padding:10px 13px;font-size:13.5px}
 .tlabel{font-size:10px;letter-spacing:1px;color:#8A8392;font-weight:700;margin:16px 0 4px}
-.trow{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:9px;transition:background .15s}
+.trow{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;padding:9px 10px;border-radius:9px;transition:background .15s}
+.tmain{flex:1;min-width:0}
+.ilink{color:#C44B6E;text-decoration:none;font-weight:600}.ilink:hover{text-decoration:underline}
+.lprev{margin:8px 0 2px}
+.lprev-load{font-size:11px;color:#A99FB0;font-style:italic}
+.lprev-card{display:flex;gap:0;align-items:stretch;text-decoration:none;border:1px solid #EEE3E9;border-radius:10px;overflow:hidden;max-width:430px;background:#fff;transition:box-shadow .15s,transform .12s}
+.lprev-card:hover{box-shadow:0 5px 16px rgba(26,20,48,.13);transform:translateY(-1px)}
+.lprev-img{width:104px;object-fit:cover;flex-shrink:0;background:#F4EEF1}
+.lprev-body{padding:9px 12px;min-width:0}
+.lprev-title{font-size:12.5px;font-weight:700;color:#1A1430;line-height:1.25;margin-bottom:3px}
+.lprev-desc{font-size:11px;color:#8A8392;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lprev-host{font-size:10px;color:#C44B6E;margin-top:4px;font-weight:600;text-decoration:none;display:inline-block;word-break:break-all}
 .trow:hover{background:#FBF7F9}
 .trow label{display:flex;align-items:center;gap:11px;font-size:13.5px;cursor:pointer;flex:1;line-height:1.35}
 .trow input[type=checkbox]{width:18px;height:18px;accent-color:#1F9D6B;cursor:pointer;flex-shrink:0}
@@ -324,7 +335,7 @@ async function pageStrategy(){
   if(l7.shop.retPct>10)sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Clear the fulfillment backlog (returns '+l7.shop.retPct.toFixed(0)+'% L7D) — it caps volume and triggers chargeback/Shopify-flag risk.'});
   sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Escalate a 2nd Meta Business Manager / ad account — one ban halts all paid acquisition.'});
   window._sug=sug;
-  const sugHtml=sug.map((s,i)=>'<div class="sug"><div class="sug-t"><span class="sdot" style="background:'+s.c+'"></span><b style="color:'+s.c+'">'+s.cat+'</b></div><div class="sug-d">'+s.t+'</div><button class="addbtn" onclick="addSug('+i+')">+ Add to board</button></div>').join('');
+  const sugHtml=sug.map((s,i)=>{const url=firstUrl(s.t);return '<div class="sug"><div class="sug-t"><span class="sdot" style="background:'+s.c+'"></span><b style="color:'+s.c+'">'+s.cat+'</b></div><div class="sug-d">'+linkify(s.t)+'</div>'+(url?previewSlot(url):'')+'<button class="addbtn" onclick="addSug('+i+')">+ Add to board</button></div>';}).join('');
   const open=tasks.filter(t=>!t.done), done=tasks.filter(t=>t.done);
   const openHtml=open.length?open.map(taskRow).join(''):'<div class="empty">No open tasks — add one above or from a suggestion.</div>';
   const doneHtml=done.length?done.map(taskRow).join(''):'<div class="empty">Nothing completed yet.</div>';
@@ -337,15 +348,22 @@ async function pageStrategy(){
     '<div class="tlabel">COMPLETED ('+done.length+')</div><div>'+doneHtml+'</div>'+
   '</div></div>';
 }
-function taskRow(t){return '<div class="trow'+(t.done?' done':'')+'"><label><input type="checkbox" '+(t.done?'checked':'')+' onchange="toggleTask(\''+t.id+'\',this.checked)"><span>'+escapeHtml(t.text)+'</span></label><button class="del" onclick="delTask(\''+t.id+'\')" title="delete">×</button></div>';}
+function taskRow(t){const url=firstUrl(t.text);return '<div class="trow'+(t.done?' done':'')+'"><div class="tmain"><label><input type="checkbox" '+(t.done?'checked':'')+' onchange="toggleTask(\''+t.id+'\',this.checked)"><span>'+linkify(t.text)+'</span></label>'+(url?previewSlot(url):'')+'</div><button class="del" onclick="delTask(\''+t.id+'\')" title="delete">×</button></div>';}
 function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+// ---- link detection + preview ----
+const URLRE=/(https?:\/\/[^\s<]+|(?:www\.)[^\s<]+|[a-z0-9-]+(?:\.[a-z0-9-]+)+\.[a-z]{2,}(?:\/[^\s<]*)?)/gi;
+function toHref(m){return /^https?:\/\//i.test(m)?m:'https://'+m;}
+function firstUrl(text){const m=(text||'').match(URLRE);return m?toHref(m[0].replace(/[.,)]+$/,'')):null;}
+function linkify(text){return escapeHtml(text).replace(URLRE,m=>{const clean=m.replace(/[.,)]+$/,'');return '<a href="'+toHref(clean)+'" target="_blank" rel="noopener" class="ilink">'+clean+'</a>'+m.slice(clean.length);});}
+function previewSlot(url){return '<div class="lprev" data-url="'+escapeHtml(url)+'"></div>';}
+async function loadPreviews(){const els=document.querySelectorAll('.lprev[data-url]:not([data-done])');for(const el of els){el.setAttribute('data-done','1');const url=el.getAttribute('data-url');el.innerHTML='<div class="lprev-load">loading preview…</div>';try{const p=await fetch('/api/preview?url='+encodeURIComponent(url)).then(x=>x.json());if(p&&(p.title||p.image)){el.innerHTML='<a class="lprev-card" href="'+escapeHtml(p.url||url)+'" target="_blank" rel="noopener">'+(p.image?'<img class="lprev-img" src="'+escapeHtml(p.image)+'" onerror="this.style.display=\'none\'">':'')+'<div class="lprev-body"><div class="lprev-title">'+escapeHtml(p.title||p.host||url)+'</div>'+(p.desc?'<div class="lprev-desc">'+escapeHtml(p.desc)+'</div>':'')+'<div class="lprev-host">'+escapeHtml(p.host||'')+' ↗</div></div></a>';}else{el.innerHTML='<a class="lprev-host" href="'+escapeHtml(url)+'" target="_blank" rel="noopener">'+escapeHtml(url)+' ↗</a>';}}catch(e){el.innerHTML='';}}}
 async function addTask(){const el=document.getElementById('newtask');const text=(el.value||'').trim();if(!text)return;el.value='';await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});render();}
 async function addSug(i){const s=window._sug[i];if(!s)return;await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'['+s.cat+'] '+s.t})});render();}
 async function toggleTask(id,done){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({done})});render();}
 async function delTask(id){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'DELETE'});render();}
 const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy};
 let current='overview';
-async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}
+async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();loadPreviews();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}
 document.querySelectorAll('.navitem').forEach(n=>n.onclick=()=>{document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));n.classList.add('active');current=n.dataset.p;render();});
 renderDatebar();render();
 </script></body></html>

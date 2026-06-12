@@ -10,9 +10,17 @@ const IMGDIR=DIR+'/creative_imgs'; if(!fs.existsSync(IMGDIR))fs.mkdirSync(IMGDIR
 
 // ---- shared task board (persisted to tasks.json) ----
 const TASKS_FILE=DIR+'/tasks.json';
-function loadTasks(){try{return JSON.parse(fs.readFileSync(TASKS_FILE,'utf8'));}catch(e){return [];}}
+const DEFAULT_TASKS=[{id:'seed-duo',text:'Test the New Blossom Duo Landing Page https://home.nancyfinds.com/duo/',done:false,ts:Date.now()}];
+function loadTasks(){try{return JSON.parse(fs.readFileSync(TASKS_FILE,'utf8'));}catch(e){return DEFAULT_TASKS.map(t=>({...t}));}}
 function saveTasks(t){try{fs.writeFileSync(TASKS_FILE,JSON.stringify(t,null,2));}catch(e){}}
 function readBody(req){return new Promise(r=>{let b='';req.on('data',c=>{b+=c;if(b.length>1e5)req.destroy();});req.on('end',()=>{try{r(JSON.parse(b||'{}'));}catch(e){r({});}});});}
+// ---- link preview (OpenGraph scrape, cached) ----
+const previewCache={};
+function decodeEnt(s){return (s||'').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#0?39;/g,"'").replace(/&#x27;/gi,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ');}
+function metaTag(body,prop){const re=new RegExp('<meta[^>]+(?:property|name)=["\\\']'+prop+'["\\\'][^>]*>','i');const m=body.match(re);if(!m)return null;const c=m[0].match(/content=["\']([^"\']*)["\']/i);return c?decodeEnt(c[1]):null;}
+function fetchUrl(url,depth){return new Promise((resolve,reject)=>{if((depth||0)>4)return reject(new Error('too many redirects'));const lib=url.startsWith('https')?https:http;const req=lib.get(url,{headers:{'User-Agent':'Mozilla/5.0 (NancyFinds link preview)'}},r=>{if(r.statusCode>=300&&r.statusCode<400&&r.headers.location){r.resume();let next;try{next=new URL(r.headers.location,url).toString();}catch(e){return reject(e);}return fetchUrl(next,(depth||0)+1).then(resolve,reject);}let b='',len=0;r.on('data',c=>{len+=c.length;if(len>6e5){req.destroy();}else b+=c;});r.on('end',()=>resolve({body:b,finalUrl:url}));});req.on('error',reject);req.setTimeout(8000,()=>req.destroy(new Error('timeout')));});}
+async function linkPreview(url){if(previewCache[url]&&Date.now()-previewCache[url].t<6*3600000)return previewCache[url].d;const {body,finalUrl}=await fetchUrl(url);let image=metaTag(body,'og:image')||metaTag(body,'twitter:image');if(image){try{image=new URL(image,finalUrl).toString();}catch(e){}}let title=metaTag(body,'og:title')||(body.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'';let desc=metaTag(body,'og:description')||metaTag(body,'description')||'';let host='';try{host=new URL(finalUrl).host.replace(/^www\./,'');}catch(e){}const d={url:finalUrl,title:decodeEnt(title).trim().slice(0,120),desc:decodeEnt(desc).trim().slice(0,220),image:image||null,host};previewCache[url]={t:Date.now(),d};return d;}
+
 // ---- editable scorecard benchmarks (persisted) ----
 const BENCH_FILE=DIR+'/benchmarks.json';
 function loadBench(){try{return JSON.parse(fs.readFileSync(BENCH_FILE,'utf8'));}catch(e){return null;}}
@@ -76,6 +84,7 @@ http.createServer(async (req,res)=>{
       if(req.method==='PATCH'){const bd=await readBody(req);const id=u.searchParams.get('id');const t=loadTasks().map(x=>x.id===id?{...x,done:!!bd.done}:x);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
       if(req.method==='DELETE'){const id=u.searchParams.get('id');saveTasks(loadTasks().filter(x=>x.id!==id));res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
     }
+    if(u.pathname==='/api/preview'){const url=u.searchParams.get('url')||'';if(!/^https?:\/\//i.test(url)){res.writeHead(400,{'Content-Type':'application/json'});return res.end('{"error":"bad url"}');}try{const d=await linkPreview(url);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(d));}catch(e){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({url,error:String(e&&e.message||e)}));}}
     if(u.pathname==='/api/benchmarks'){
       if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadBench()||{}));}
       if(req.method==='PUT'){const bd=await readBody(req);saveBench(bd);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
