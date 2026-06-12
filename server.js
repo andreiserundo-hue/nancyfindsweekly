@@ -18,7 +18,7 @@ function readBody(req){return new Promise(r=>{let b='';req.on('data',c=>{b+=c;if
 const SIG_FILE=DIR+'/signals.json';
 const DEFAULT_SIGNALS=[
  {id:'backlog',label:'Fulfillment backlog — paid spend throttled',status:'active',impact:'risk',note:'Spend is intentionally throttled while the shipment backlog clears (returns / chargeback risk). Resolve this when the backlog is cleared and all tabs update.',ts:Date.now(),updated:Date.now()},
- {id:'duo-lp',label:'Blossom Duo landing page — in testing',status:'active',impact:'test',note:'Testing https://home.nancyfinds.com/duo/ — compare ROAS vs control before scaling.',ts:Date.now(),updated:Date.now()}
+ {id:'duo-lp',label:'Blossom Duo landing page — test pending',status:'active',impact:'test',taskId:'seed-duo',note:'Not tested yet. Linked to the "Test the New Blossom Duo Landing Page" board task — this auto-resolves when that checkbox is ticked. https://home.nancyfinds.com/duo/',ts:Date.now(),updated:Date.now()}
 ];
 function loadSignals(){try{return JSON.parse(fs.readFileSync(SIG_FILE,'utf8'));}catch(e){return DEFAULT_SIGNALS.map(s=>({...s}));}}
 function saveSignals(s){try{fs.writeFileSync(SIG_FILE,JSON.stringify(s,null,2));}catch(e){}}

@@ -222,21 +222,24 @@ function nextSteps(tab,d){
 // ---------- Situation Room (shared context synced across all tabs) ----------
 const SIGIMP={risk:{c:'#DB3B3B',i:'⚠'},test:{c:'#E0922F',i:'🧪'},win:{c:'#1F9D6B',i:'✅'},info:{c:'#4A3D66',i:'•'}};
 function sig(id){return (window._signals||[]).find(s=>s.id===id);}
-function sigActive(id){const s=sig(id);return !!(s&&s.status==='active');}
-async function refreshSignals(){try{window._signals=await fetch('/api/signals').then(x=>x.json());}catch(e){window._signals=window._signals||[];}renderSigbar();}
-function renderSigbar(){const el=document.getElementById('sigbar');if(!el)return;const act=(window._signals||[]).filter(s=>s.status==='active');if(!act.length){el.style.display='none';el.innerHTML='';return;}el.style.display='flex';
+// a signal linked to a board task is "done" when that task's checkbox is checked
+function sigDone(s){if(!s)return false;if(s.taskId){const t=(window._tasks||[]).find(t=>t.id===s.taskId);if(t)return !!t.done;}return s.status==='resolved';}
+function sigActive(id){const s=sig(id);return !!(s&&!sigDone(s));}
+async function refreshSignals(){try{const [s,t]=await Promise.all([fetch('/api/signals').then(x=>x.json()),fetch('/api/tasks').then(x=>x.json())]);window._signals=s;window._tasks=t;}catch(e){window._signals=window._signals||[];}renderSigbar();}
+function renderSigbar(){const el=document.getElementById('sigbar');if(!el)return;const act=(window._signals||[]).filter(s=>!sigDone(s));if(!act.length){el.style.display='none';el.innerHTML='';return;}el.style.display='flex';
   el.innerHTML='<span class="sigbar-l">NOW:</span>'+act.map(s=>{const k=SIGIMP[s.impact]||SIGIMP.info;return '<span class="sigchip" style="border-color:'+k.c+'" title="'+escapeHtml(s.note||'')+'" onclick="goStrategy()">'+k.i+' '+escapeHtml(s.label)+'</span>';}).join('');}
 function goStrategy(){document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));const n=document.querySelector('.navitem[data-p="strategy"]');if(n)n.classList.add('active');current='strategy';render();}
-function situationRoom(){const sigs=window._signals||[];const act=sigs.filter(s=>s.status==='active'),res=sigs.filter(s=>s.status==='resolved');
-  const item=s=>{const k=SIGIMP[s.impact]||SIGIMP.info;
+function situationRoom(){const sigs=window._signals||[];const act=sigs.filter(s=>!sigDone(s)),res=sigs.filter(s=>sigDone(s));
+  const item=s=>{const k=SIGIMP[s.impact]||SIGIMP.info;const linked=!!s.taskId;const done=sigDone(s);
     if(window._sigEdit===s.id){return '<div class="sigrow"><span class="sigdot" style="background:'+k.c+'"></span><div class="sigmain">'+
       '<input class="bedit" id="sig_l_'+s.id+'" value="'+escapeHtml(s.label)+'" style="width:100%;text-align:left;margin-bottom:6px">'+
       '<textarea class="sugedit" id="sig_n_'+s.id+'" style="min-height:54px">'+escapeHtml(s.note||'')+'</textarea>'+
       '<div style="display:flex;gap:8px;margin-top:6px;align-items:center"><select id="sig_i_'+s.id+'" class="pbtn">'+Object.keys(SIGIMP).map(x=>'<option value="'+x+'"'+(s.impact===x?' selected':'')+'>'+x+'</option>').join('')+'</select>'+
       '<button class="addbtn solid" onclick="saveSignal(\''+s.id+'\')">Save</button><button class="addbtn" onclick="window._sigEdit=null;render()">Cancel</button></div></div></div>';}
-    return '<div class="sigrow'+(s.status==='resolved'?' res':'')+'"><span class="sigdot" style="background:'+k.c+'"></span>'+
-      '<div class="sigmain"><div class="sigttl">'+escapeHtml(s.label)+'</div>'+(s.note?'<div class="signote">'+linkify(s.note)+'</div>':'')+'</div>'+
-      '<div class="sigacts">'+(s.status==='active'?'<button class="addbtn" onclick="toggleSignal(\''+s.id+'\',\'resolved\')">✓ Resolve</button>':'<button class="addbtn" onclick="toggleSignal(\''+s.id+'\',\'active\')">Reopen</button>')+
+    return '<div class="sigrow'+(done?' res':'')+'"><span class="sigdot" style="background:'+k.c+'"></span>'+
+      '<div class="sigmain"><div class="sigttl">'+escapeHtml(s.label)+'</div>'+(s.note?'<div class="signote">'+linkify(s.note)+'</div>':'')+
+      (linked?'<div class="signote" style="color:#C44B6E">↳ synced with the board task — '+(done?'checked off (done)':'checks off when you tick it on the board')+'</div>':'')+'</div>'+
+      '<div class="sigacts">'+(linked?'':(done?'<button class="addbtn" onclick="toggleSignal(\''+s.id+'\',\'active\')">Reopen</button>':'<button class="addbtn" onclick="toggleSignal(\''+s.id+'\',\'resolved\')">✓ Resolve</button>'))+
       '<span class="sicon" title="edit" onclick="editSignal(\''+s.id+'\')">✎</span><span class="sicon" title="delete" onclick="delSignal(\''+s.id+'\')">×</span></div></div>';};
   return '<div class="card sitroom"><h2>📌 Situation Room</h2><div class="sub2">Shared context — update once here and it syncs across every tab</div>'+
     (act.length?act.map(item).join(''):'<div class="empty">No active situations.</div>')+
@@ -373,22 +376,26 @@ async function pageCountries(){const d=await getRange(active.start,active.end,ac
   return '<h1>Sales by Country</h1><div class="cap">'+active.label+' · net revenue</div><div class="card"><table><tr><th>Country</th><th>Orders</th><th>Revenue</th><th>% Rev</th></tr>'+rows+'</table></div>';
 }
 async function pageStrategy(){
-  const [l7,d,tasks,ov]=await Promise.all([getRange(...PRESETS['Last 7 Days']),getRange(active.start,active.end,active.st,active.et),fetch('/api/tasks').then(x=>x.json()).catch(()=>[]),fetch('/api/suggestions').then(x=>x.json()).catch(()=>({}))]);
-  window._sugOv=ov||{};
+  // Strategy is PRIORITY-driven, not filter-driven: always from a fixed L7D window
+  const [l7,tasks,ov]=await Promise.all([getRange(...PRESETS['Last 7 Days']),fetch('/api/tasks').then(x=>x.json()).catch(()=>[]),fetch('/api/suggestions').then(x=>x.json()).catch(()=>({}))]);
+  window._sugOv=ov||{};window._tasks=tasks;
   const sug=[];
-  (d.creatives||[]).filter(c=>c.buys>0&&c.roas>=1.75).sort((a,b)=>b.roas-a.roas).slice(0,3).forEach(c=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Scale '+clean(c.name).substring(0,30)+' ('+c.roas.toFixed(1)+'x, '+c.buys+' buys) into the ABO creative-test (HK$200/day, ~20 creatives).'}));
-  (d.landing||[]).filter(l=>l.spend>0&&l.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2).forEach(l=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Shift budget to '+clean(l.name)+' ('+l.roas.toFixed(2)+'x) and route paid traffic through it.'}));
-  (d.campaigns||[]).filter(c=>c.spend>0&&c.roas<1.2).sort((a,b)=>b.spend-a.spend).forEach(c=>sug.push({c:'#DB3B3B',cat:'FIX / CUT',t:'Rework or cut '+clean(c.name).substring(0,30)+' — '+usdH(c.spend)+' at '+c.roas.toFixed(2)+'x. Move toward the winning funnel or stop the bleed.'}));
-  const wasteful=(d.creatives||[]).filter(c=>c.spend>500&&c.buys===0);
+  (l7.creatives||[]).filter(c=>c.buys>0&&c.roas>=1.75).sort((a,b)=>b.roas-a.roas).slice(0,3).forEach(c=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Scale '+clean(c.name).substring(0,30)+' ('+c.roas.toFixed(1)+'x, '+c.buys+' buys) into the ABO creative-test (HK$200/day, ~20 creatives).'}));
+  (l7.landing||[]).filter(l=>l.spend>0&&l.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2).forEach(l=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Shift budget to '+clean(l.name)+' ('+l.roas.toFixed(2)+'x) and route paid traffic through it.'}));
+  (l7.campaigns||[]).filter(c=>c.spend>0&&c.roas<1.2).sort((a,b)=>b.spend-a.spend).forEach(c=>sug.push({c:'#DB3B3B',cat:'FIX / CUT',t:'Rework or cut '+clean(c.name).substring(0,30)+' — '+usdH(c.spend)+' at '+c.roas.toFixed(2)+'x. Move toward the winning funnel or stop the bleed.'}));
+  const wasteful=(l7.creatives||[]).filter(c=>c.spend>500&&c.buys===0);
   if(wasteful.length)sug.push({c:'#DB3B3B',cat:'FIX / CUT',t:'Pause '+wasteful.length+' creative(s) spending with 0 purchases; rebudget to editorial/lifestyle angles.'});
-  const co=Object.entries(d.shop.countries).sort((a,b)=>b[1].net-a[1].net)[0];const tot=Object.values(d.shop.countries).reduce((a,c)=>a+c.net,0)||1;
+  const co=Object.entries(l7.shop.countries).sort((a,b)=>b[1].net-a[1].net)[0];const tot=Object.values(l7.shop.countries).reduce((a,c)=>a+c.net,0)||1;
   if(co)sug.push({c:'#1F9D6B',cat:'GEO',t:co[0]+' is '+Math.round(co[1].net/tot*100)+'% of revenue — test '+co[0]+'-only ad sets for efficiency.'});
   sug.push({c:'#E0922F',cat:'REFRESH',t:'Refresh the Aura Scream LP hook/offer (cooled from ~1.79x) and re-test with the new editorial creatives.'});
   sug.push({c:'#E0922F',cat:'REFRESH',t:'On the Scream LP, demote competitors below the 3 Nancy products they currently outrank.'});
-  // context-driven suggestions — synced with the Situation Room
+  // context-driven suggestions — synced with the Situation Room (and its linked board tasks)
   if(sigActive('backlog'))sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Clear the fulfillment backlog (returns '+l7.shop.retPct.toFixed(0)+'% L7D) — it caps volume and triggers chargeback/Shopify-flag risk. Unthrottle spend once cleared.'});
-  if(sigActive('duo-lp'))sug.push({c:'#E0922F',cat:'REFRESH',t:'Blossom Duo LP is in testing — watch https://home.nancyfinds.com/duo/ ROAS vs control; scale if it beats the funnel, kill after 5–7 days if not.'});
+  if(sigActive('duo-lp'))sug.push({c:'#E0922F',cat:'REFRESH',t:'Launch the Blossom Duo LP test — https://home.nancyfinds.com/duo/ — then check off the board task. Compare ROAS vs control; scale if it wins, kill after 5–7 days if not.'});
   sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Escalate a 2nd Meta Business Manager / ad account — one ban halts all paid acquisition.'});
+  // order by urgency (most urgent first), not by data window
+  const CATPRI={'FIX / CUT':0,'STRUCTURAL':1,'REFRESH':2,'DOUBLE DOWN':3,'GEO':4};
+  sug.sort((a,b)=>(CATPRI[a.cat]==null?9:CATPRI[a.cat])-(CATPRI[b.cat]==null?9:CATPRI[b.cat]));
   // apply saved edits / dismissals (keyed by a stable hash of the original text)
   sug.forEach(s=>{s.key=hashStr(s.cat+'|'+s.t);});
   const visible=sug.filter(s=>!(ov[s.key]&&ov[s.key].hidden));
@@ -406,10 +413,10 @@ async function pageStrategy(){
   const open=tasks.filter(t=>!t.done), done=tasks.filter(t=>t.done);
   const openHtml=open.length?open.map(taskRow).join(''):'<div class="empty">No open tasks — add one above or from a suggestion.</div>';
   const doneHtml=done.length?done.map(taskRow).join(''):'<div class="empty">Nothing completed yet.</div>';
-  return '<h1>Strategy &amp; Next Steps</h1><div class="cap">Suggestions auto-update with the date filter ('+active.label+') · the Situation Room below syncs context across every tab</div>'+
+  return '<h1>Strategy &amp; Next Steps</h1><div class="cap">Priority-ordered (most urgent first) · fixed last-7-days view, not affected by the date filter · the Situation Room syncs context across every tab</div>'+
   situationRoom()+
   '<div class="stratgrid">'+
-  '<div class="stratcard"><h2>💡 Suggested Actions</h2><div class="sub2">'+active.label+' ('+active.start+'→'+active.end+') · ✎ edit · × dismiss · + add to board'+((Object.keys(ov).length)?' · <a class="ilink" style="cursor:pointer" onclick="resetSug()">reset all</a>'+(hiddenCount?' ('+hiddenCount+' hidden)':''):'')+'</div>'+sugHtml+'</div>'+
+  '<div class="stratcard"><h2>💡 Suggested Actions</h2><div class="sub2">last 7 days · most urgent first · ✎ edit · × dismiss · + add to board'+((Object.keys(ov).length)?' · <a class="ilink" style="cursor:pointer" onclick="resetSug()">reset all</a>'+(hiddenCount?' ('+hiddenCount+' hidden)':''):'')+'</div>'+sugHtml+'</div>'+
   '<div class="stratcard"><h2>✅ Action Board</h2><div class="sub2">add your own next steps, check them off, delete what no longer fits</div>'+
     '<div class="addrow"><input id="newtask" maxlength="200" placeholder="Add a next step…" onkeydown="if(event.key===\'Enter\')addTask()"><button class="addbtn solid" onclick="addTask()">Add</button></div>'+
     '<div class="tlabel">OPEN ('+open.length+')</div><div>'+openHtml+'</div>'+
@@ -425,14 +432,14 @@ function firstUrl(text){const m=(text||'').match(URLRE);return m?toHref(m[0].rep
 function linkify(text){return escapeHtml(text).replace(URLRE,m=>{const clean=m.replace(/[.,)]+$/,'');return '<a href="'+toHref(clean)+'" target="_blank" rel="noopener" class="ilink">'+clean+'</a>'+m.slice(clean.length);});}
 function previewSlot(url){return '<div class="lprev" data-url="'+escapeHtml(url)+'"></div>';}
 async function loadPreviews(){const els=document.querySelectorAll('.lprev[data-url]:not([data-done])');for(const el of els){el.setAttribute('data-done','1');const url=el.getAttribute('data-url');el.innerHTML='<div class="lprev-load">loading preview…</div>';try{const p=await fetch('/api/preview?url='+encodeURIComponent(url)).then(x=>x.json());if(p&&(p.title||p.image)){el.innerHTML='<a class="lprev-card" href="'+escapeHtml(p.url||url)+'" target="_blank" rel="noopener">'+(p.image?'<img class="lprev-img" src="'+escapeHtml(p.image)+'" onerror="this.style.display=\'none\'">':'')+'<div class="lprev-body"><div class="lprev-title">'+escapeHtml(p.title||p.host||url)+'</div>'+(p.desc?'<div class="lprev-desc">'+escapeHtml(p.desc)+'</div>':'')+'<div class="lprev-host">'+escapeHtml(p.host||'')+' ↗</div></div></a>';}else{el.innerHTML='<a class="lprev-host" href="'+escapeHtml(url)+'" target="_blank" rel="noopener">'+escapeHtml(url)+' ↗</a>';}}catch(e){el.innerHTML='';}}}
-async function addTask(){const el=document.getElementById('newtask');const text=(el.value||'').trim();if(!text)return;el.value='';await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});render();}
-async function addSug(i){const s=window._sug[i];if(!s)return;await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'['+s.cat+'] '+(s.disp||s.t)})});render();}
+async function addTask(){const el=document.getElementById('newtask');const text=(el.value||'').trim();if(!text)return;el.value='';await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});await refreshSignals();render();}
+async function addSug(i){const s=window._sug[i];if(!s)return;await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'['+s.cat+'] '+(s.disp||s.t)})});await refreshSignals();render();}
 function hashStr(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return 'h'+(h>>>0).toString(36);}
 async function saveSugEdit(i){const s=window._sug[i];if(!s)return;const txt=(document.getElementById('sugedit').value||'').trim();window._sugEdit=null;if(!txt){render();return;}await fetch('/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:s.key,text:txt})});render();}
 async function dismissSug(i){const s=window._sug[i];if(!s)return;await fetch('/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:s.key,hidden:true})});render();}
 async function resetSug(){await fetch('/api/suggestions',{method:'DELETE'});render();}
-async function toggleTask(id,done){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({done})});render();}
-async function delTask(id){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'DELETE'});render();}
+async function toggleTask(id,done){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({done})});await refreshSignals();render();}
+async function delTask(id){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'DELETE'});await refreshSignals();render();}
 const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy};
 let current='overview';
 async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();loadPreviews();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}
