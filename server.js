@@ -14,6 +14,15 @@ const DEFAULT_TASKS=[{id:'seed-duo',text:'Test the New Blossom Duo Landing Page 
 function loadTasks(){try{return JSON.parse(fs.readFileSync(TASKS_FILE,'utf8'));}catch(e){return DEFAULT_TASKS.map(t=>({...t}));}}
 function saveTasks(t){try{fs.writeFileSync(TASKS_FILE,JSON.stringify(t,null,2));}catch(e){}}
 function readBody(req){return new Promise(r=>{let b='';req.on('data',c=>{b+=c;if(b.length>1e5)req.destroy();});req.on('end',()=>{try{r(JSON.parse(b||'{}'));}catch(e){r({});}});});}
+// ---- shared "Situation Room" signals (synced context across all tabs) ----
+const SIG_FILE=DIR+'/signals.json';
+const DEFAULT_SIGNALS=[
+ {id:'backlog',label:'Fulfillment backlog — paid spend throttled',status:'active',impact:'risk',note:'Spend is intentionally throttled while the shipment backlog clears (returns / chargeback risk). Resolve this when the backlog is cleared and all tabs update.',ts:Date.now(),updated:Date.now()},
+ {id:'duo-lp',label:'Blossom Duo landing page — in testing',status:'active',impact:'test',note:'Testing https://home.nancyfinds.com/duo/ — compare ROAS vs control before scaling.',ts:Date.now(),updated:Date.now()}
+];
+function loadSignals(){try{return JSON.parse(fs.readFileSync(SIG_FILE,'utf8'));}catch(e){return DEFAULT_SIGNALS.map(s=>({...s}));}}
+function saveSignals(s){try{fs.writeFileSync(SIG_FILE,JSON.stringify(s,null,2));}catch(e){}}
+
 // ---- suggestion overrides (edits / dismissals, persisted) ----
 const SUG_FILE=DIR+'/suggestions.json';
 function loadSug(){try{return JSON.parse(fs.readFileSync(SUG_FILE,'utf8'));}catch(e){return {};}}
@@ -88,6 +97,14 @@ http.createServer(async (req,res)=>{
       if(req.method==='POST'){const bd=await readBody(req);const text=(bd.text||'').toString().trim().slice(0,200);if(!text){res.writeHead(400,{'Content-Type':'application/json'});return res.end('{"error":"empty"}');}const task={id:'t'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36),text,done:false,ts:Date.now()};const t=loadTasks();t.unshift(task);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(task));}
       if(req.method==='PATCH'){const bd=await readBody(req);const id=u.searchParams.get('id');const t=loadTasks().map(x=>x.id===id?{...x,done:!!bd.done}:x);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
       if(req.method==='DELETE'){const id=u.searchParams.get('id');saveTasks(loadTasks().filter(x=>x.id!==id));res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+    }
+    if(u.pathname==='/api/signals'){
+      if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadSignals()));}
+      if(req.method==='POST'){const bd=await readBody(req);let sigs=loadSignals();
+        if(bd.id&&sigs.find(s=>s.id===bd.id)){sigs=sigs.map(s=>{if(s.id!==bd.id)return s;const n={...s};if(bd.label!==undefined)n.label=(''+bd.label).slice(0,160);if(bd.note!==undefined)n.note=(''+bd.note).slice(0,400);if(bd.impact!==undefined)n.impact=bd.impact;if(bd.status!==undefined)n.status=bd.status;n.updated=Date.now();return n;});}
+        else{const id=bd.id||('s'+Date.now().toString(36)+Math.floor(Math.random()*1e3).toString(36));sigs.unshift({id,label:(''+(bd.label||'')).slice(0,160),note:(''+(bd.note||'')).slice(0,400),impact:bd.impact||'info',status:bd.status||'active',ts:Date.now(),updated:Date.now()});}
+        saveSignals(sigs);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+      if(req.method==='DELETE'){const id=u.searchParams.get('id');saveSignals(loadSignals().filter(s=>s.id!==id));res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
     }
     if(u.pathname==='/api/suggestions'){
       if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadSug()));}

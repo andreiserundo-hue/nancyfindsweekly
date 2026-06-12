@@ -140,6 +140,20 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 tr.reached td{background:#F2FAF6 !important}
 .bedit{width:60px;border:1px solid #C9BFD0;border-radius:6px;padding:4px 6px;font-size:12px;text-align:right;transition:border-color .15s}
 .bedit:focus{outline:none;border-color:#C44B6E;box-shadow:0 0 0 2px rgba(196,75,110,.12)}
+/* situation room + global signal bar */
+.sigbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.sigbar-l{font-size:10px;font-weight:700;letter-spacing:1px;color:#8A8392}
+.sigchip{background:#fff;border:1px solid #E7DFE4;border-left-width:4px;border-radius:9px;padding:6px 11px;font-size:12px;font-weight:600;color:#1A1430;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.05);transition:transform .12s,box-shadow .15s}
+.sigchip:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(26,20,48,.12)}
+.sitroom h2{display:flex;align-items:center;gap:8px}
+.sigrow{display:flex;align-items:flex-start;gap:11px;padding:11px 4px;border-bottom:1px solid #F4EEF1}
+.sigrow:last-of-type{border-bottom:0}
+.sigrow.res{opacity:.6}.sigrow.res .sigttl{text-decoration:line-through;color:#A99FB0}
+.sigdot{width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.sigmain{flex:1;min-width:0}
+.sigttl{font-size:13.5px;font-weight:700;color:#1A1430;line-height:1.3}
+.signote{font-size:12px;color:#8A8392;line-height:1.4;margin-top:3px}
+.sigacts{display:flex;align-items:center;gap:8px;flex-shrink:0}
 </style></head><body>
 <div class="nav">
   <div class="brand">Nancy Finds<small>LIVE DASHBOARD</small></div>
@@ -157,6 +171,7 @@ tr.reached td{background:#F2FAF6 !important}
 </div>
 <div class="main">
   <div class="datebar" id="datebar"></div>
+  <div class="sigbar" id="sigbar" style="display:none"></div>
   <div id="view"><div class="loading">Loading…</div></div>
 </div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><span class="mclose" onclick="closeModal()">×</span><div class="mbox" id="mbox"></div></div>
@@ -204,6 +219,35 @@ function nextSteps(tab,d){
   return '<div class="ns"><h3>NEXT STEPS / ACTIONS</h3>'+items.map(i=>'<div class="i"><span class="b">'+i[0]+'</span><span>'+i[1]+'</span></div>').join('')+'</div>';
 }
 
+// ---------- Situation Room (shared context synced across all tabs) ----------
+const SIGIMP={risk:{c:'#DB3B3B',i:'⚠'},test:{c:'#E0922F',i:'🧪'},win:{c:'#1F9D6B',i:'✅'},info:{c:'#4A3D66',i:'•'}};
+function sig(id){return (window._signals||[]).find(s=>s.id===id);}
+function sigActive(id){const s=sig(id);return !!(s&&s.status==='active');}
+async function refreshSignals(){try{window._signals=await fetch('/api/signals').then(x=>x.json());}catch(e){window._signals=window._signals||[];}renderSigbar();}
+function renderSigbar(){const el=document.getElementById('sigbar');if(!el)return;const act=(window._signals||[]).filter(s=>s.status==='active');if(!act.length){el.style.display='none';el.innerHTML='';return;}el.style.display='flex';
+  el.innerHTML='<span class="sigbar-l">NOW:</span>'+act.map(s=>{const k=SIGIMP[s.impact]||SIGIMP.info;return '<span class="sigchip" style="border-color:'+k.c+'" title="'+escapeHtml(s.note||'')+'" onclick="goStrategy()">'+k.i+' '+escapeHtml(s.label)+'</span>';}).join('');}
+function goStrategy(){document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));const n=document.querySelector('.navitem[data-p="strategy"]');if(n)n.classList.add('active');current='strategy';render();}
+function situationRoom(){const sigs=window._signals||[];const act=sigs.filter(s=>s.status==='active'),res=sigs.filter(s=>s.status==='resolved');
+  const item=s=>{const k=SIGIMP[s.impact]||SIGIMP.info;
+    if(window._sigEdit===s.id){return '<div class="sigrow"><span class="sigdot" style="background:'+k.c+'"></span><div class="sigmain">'+
+      '<input class="bedit" id="sig_l_'+s.id+'" value="'+escapeHtml(s.label)+'" style="width:100%;text-align:left;margin-bottom:6px">'+
+      '<textarea class="sugedit" id="sig_n_'+s.id+'" style="min-height:54px">'+escapeHtml(s.note||'')+'</textarea>'+
+      '<div style="display:flex;gap:8px;margin-top:6px;align-items:center"><select id="sig_i_'+s.id+'" class="pbtn">'+Object.keys(SIGIMP).map(x=>'<option value="'+x+'"'+(s.impact===x?' selected':'')+'>'+x+'</option>').join('')+'</select>'+
+      '<button class="addbtn solid" onclick="saveSignal(\''+s.id+'\')">Save</button><button class="addbtn" onclick="window._sigEdit=null;render()">Cancel</button></div></div></div>';}
+    return '<div class="sigrow'+(s.status==='resolved'?' res':'')+'"><span class="sigdot" style="background:'+k.c+'"></span>'+
+      '<div class="sigmain"><div class="sigttl">'+escapeHtml(s.label)+'</div>'+(s.note?'<div class="signote">'+linkify(s.note)+'</div>':'')+'</div>'+
+      '<div class="sigacts">'+(s.status==='active'?'<button class="addbtn" onclick="toggleSignal(\''+s.id+'\',\'resolved\')">✓ Resolve</button>':'<button class="addbtn" onclick="toggleSignal(\''+s.id+'\',\'active\')">Reopen</button>')+
+      '<span class="sicon" title="edit" onclick="editSignal(\''+s.id+'\')">✎</span><span class="sicon" title="delete" onclick="delSignal(\''+s.id+'\')">×</span></div></div>';};
+  return '<div class="card sitroom"><h2>📌 Situation Room</h2><div class="sub2">Shared context — update once here and it syncs across every tab</div>'+
+    (act.length?act.map(item).join(''):'<div class="empty">No active situations.</div>')+
+    (res.length?'<div class="tlabel">RESOLVED ('+res.length+')</div>'+res.map(item).join(''):'')+
+    '<div class="addrow" style="margin-top:12px"><input id="newsig" placeholder="Add a situation (e.g. New TikTok campaign live)…" onkeydown="if(event.key===\'Enter\')addSignal()"><select id="newsigimp" class="pbtn">'+Object.keys(SIGIMP).map(k=>'<option value="'+k+'">'+k+'</option>').join('')+'</select><button class="addbtn solid" onclick="addSignal()">Add</button></div></div>';}
+async function addSignal(){const label=(document.getElementById('newsig').value||'').trim();if(!label)return;const impact=document.getElementById('newsigimp').value;await fetch('/api/signals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,impact,status:'active'})});await refreshSignals();render();}
+async function toggleSignal(id,status){await fetch('/api/signals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status})});await refreshSignals();render();}
+async function delSignal(id){await fetch('/api/signals?id='+encodeURIComponent(id),{method:'DELETE'});await refreshSignals();render();}
+function editSignal(id){window._sigEdit=id;render();}
+async function saveSignal(id){const label=document.getElementById('sig_l_'+id).value.trim();const note=document.getElementById('sig_n_'+id).value.trim();const impact=document.getElementById('sig_i_'+id).value;window._sigEdit=null;await fetch('/api/signals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,label,note,impact})});await refreshSignals();render();}
+
 // ---------- PAGES ----------
 async function pageOverview(){
   const [l30,l7]=await Promise.all([getRange(...PRESETS['Last 30 Days']),getRange(...PRESETS['Last 7 Days'])]);
@@ -215,11 +259,15 @@ async function pageOverview(){
   const ordTot=Object.values(l30.shop.countries).reduce((a,c)=>a+c.orders,0)||1;
   const wc=(v,k,n,g)=>'<div class="gp-wc'+(g?' g':'')+'"><div class="v">'+v+'</div><div class="k">'+k+'</div><div class="n">'+n+'</div></div>';
   const ph=(t,b,s,f)=>'<div class="gp-phase'+(f?' f':'')+'"><div class="t">'+t+'</div><div class="b">'+b+'</div><div class="u">revenue / day</div><div class="s">'+s+'</div></div>';
+  const throttled=sigActive('backlog');
+  const lpName=bestLP?clean(bestLP.name):'home.nancyfinds.com/nancy-bloom';const lpDisp=lpName.split('/').filter(Boolean).pop()||lpName;
+  const fwd=(throttled?'Spend is throttled while the fulfillment backlog clears. ':'Backlog cleared — spend unthrottled. ')+'The forward play: scale the green shoots — '+lpDisp+' + the winning creatives — to '+(throttled?'rebuild':'push')+' toward $1,000/day.';
   return '<h1>Overview</h1><div class="cap">The goal, where we are, and the forward play · standing windows</div>'+
   '<div class="goalpanel"><div class="gp-k">NANCY FINDS · PAID ACQUISITION</div><div class="gp-h">The Goal — Own These Numbers</div>'+
-  '<div class="gp-fwd">Spend is throttled while the fulfillment backlog clears. The forward play: scale the green shoots — '+(bestLP?clean(bestLP.name).substring(0,24):'nancy-bloom')+' + the winning creatives — to rebuild toward $1,000/day.</div>'+
+  '<div class="gp-fwd">'+fwd+'</div>'+
   '<div class="gp-phases">'+ph('PHASE 1 · FLOOR','$1,000','ROAS ≥ 1.50 · never breach',true)+ph('PHASE 2 · HEALTHY','$1,000','ROAS ≥ 1.75 · efficient scale')+ph('PHASE 3 · GREAT','$2,000','ROAS ≥ 2.00 · scale volume')+'</div>'+
   '<div class="gp-w">'+wc(topP?topP[0]:'—','Top product',topP?Math.round(topP[1].units/tot*100)+'% of units':'')+wc(topC?topC[0]:'—','Top market',topC?Math.round(topC[1].orders/ordTot*100)+'% of orders':'')+wc(l30.trueRoas.toFixed(2)+'x','30-day True ROAS','net · vs 1.50 floor')+wc(bestLP?clean(bestLP.name).substring(0,14):'—','Bright spot LP',bestLP?bestLP.roas.toFixed(2)+'x L7D':'',true)+'</div></div>'+
+  situationRoom()+
   '<div class="grid2"><div class="card"><h2>Daily Net Revenue</h2><div class="sub2">Shopify, USD · last 30 days</div>'+dailyBars(l30.shop.daily)+'</div>'+
   '<div class="card"><h2>Winning Creative & Highlights</h2><div class="sub2">last 7 days</div>'+shoots(l7)+'</div></div>';
 }
@@ -229,7 +277,7 @@ function dailyBars(daily){const days=Object.entries(daily).sort((a,b)=>a[0]<b[0]
 function shoots(l7){const cre=(l7.creatives||[]).filter(x=>x.roas>1.5).sort((a,b)=>b.roas-a.roas).slice(0,2);const lp=(l7.landing||[]).filter(x=>x.spend>0).sort((a,b)=>b.roas-a.roas)[0];
   let h=lp?'<div class="note" style="background:#E4F0EC">🟢 <b>Best LP:</b> '+clean(lp.name).substring(0,34)+' — '+lp.roas.toFixed(2)+'x</div>':'';
   cre.forEach(a=>h+='<div class="note" style="background:#E4F0EC">'+(a.img?'<img src="'+a.img+'">':'')+'<span>🟢 <b>Winning creative:</b> '+clean(a.name).substring(0,28)+' — '+a.roas.toFixed(0)+'x</span></div>');
-  h+='<div class="note">🔴 <b>Watch:</b> campaigns below 1.5x; spend throttled for backlog (returns '+l7.shop.retPct.toFixed(0)+'%).</div>';return h;}
+  h+='<div class="note">🔴 <b>Watch:</b> campaigns below 1.5x'+(sigActive('backlog')?'; spend throttled for backlog (returns '+l7.shop.retPct.toFixed(0)+'%)':' (returns '+l7.shop.retPct.toFixed(0)+'%)')+'.</div>';return h;}
 
 // editable, auto-laddering benchmarks
 const SCMETRICS=[
@@ -337,7 +385,9 @@ async function pageStrategy(){
   if(co)sug.push({c:'#1F9D6B',cat:'GEO',t:co[0]+' is '+Math.round(co[1].net/tot*100)+'% of revenue — test '+co[0]+'-only ad sets for efficiency.'});
   sug.push({c:'#E0922F',cat:'REFRESH',t:'Refresh the Aura Scream LP hook/offer (cooled from ~1.79x) and re-test with the new editorial creatives.'});
   sug.push({c:'#E0922F',cat:'REFRESH',t:'On the Scream LP, demote competitors below the 3 Nancy products they currently outrank.'});
-  if(l7.shop.retPct>10)sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Clear the fulfillment backlog (returns '+l7.shop.retPct.toFixed(0)+'% L7D) — it caps volume and triggers chargeback/Shopify-flag risk.'});
+  // context-driven suggestions — synced with the Situation Room
+  if(sigActive('backlog'))sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Clear the fulfillment backlog (returns '+l7.shop.retPct.toFixed(0)+'% L7D) — it caps volume and triggers chargeback/Shopify-flag risk. Unthrottle spend once cleared.'});
+  if(sigActive('duo-lp'))sug.push({c:'#E0922F',cat:'REFRESH',t:'Blossom Duo LP is in testing — watch https://home.nancyfinds.com/duo/ ROAS vs control; scale if it beats the funnel, kill after 5–7 days if not.'});
   sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Escalate a 2nd Meta Business Manager / ad account — one ban halts all paid acquisition.'});
   // apply saved edits / dismissals (keyed by a stable hash of the original text)
   sug.forEach(s=>{s.key=hashStr(s.cat+'|'+s.t);});
@@ -356,7 +406,8 @@ async function pageStrategy(){
   const open=tasks.filter(t=>!t.done), done=tasks.filter(t=>t.done);
   const openHtml=open.length?open.map(taskRow).join(''):'<div class="empty">No open tasks — add one above or from a suggestion.</div>';
   const doneHtml=done.length?done.map(taskRow).join(''):'<div class="empty">Nothing completed yet.</div>';
-  return '<h1>Strategy &amp; Next Steps</h1><div class="cap">Suggestions auto-update with the date filter ('+active.label+') · your action board is shared with the team</div>'+
+  return '<h1>Strategy &amp; Next Steps</h1><div class="cap">Suggestions auto-update with the date filter ('+active.label+') · the Situation Room below syncs context across every tab</div>'+
+  situationRoom()+
   '<div class="stratgrid">'+
   '<div class="stratcard"><h2>💡 Suggested Actions</h2><div class="sub2">'+active.label+' ('+active.start+'→'+active.end+') · ✎ edit · × dismiss · + add to board'+((Object.keys(ov).length)?' · <a class="ilink" style="cursor:pointer" onclick="resetSug()">reset all</a>'+(hiddenCount?' ('+hiddenCount+' hidden)':''):'')+'</div>'+sugHtml+'</div>'+
   '<div class="stratcard"><h2>✅ Action Board</h2><div class="sub2">add your own next steps, check them off, delete what no longer fits</div>'+
@@ -386,5 +437,5 @@ const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaig
 let current='overview';
 async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();loadPreviews();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}
 document.querySelectorAll('.navitem').forEach(n=>n.onclick=()=>{document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));n.classList.add('active');current=n.dataset.p;render();});
-renderDatebar();render();
+renderDatebar();refreshSignals().then(render);
 </script></body></html>

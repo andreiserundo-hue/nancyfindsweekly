@@ -12,6 +12,7 @@ dashboard_data.json
 tasks.json
 benchmarks.json
 suggestions.json
+signals.json
 *.pptx
 *.output
 _*.js
