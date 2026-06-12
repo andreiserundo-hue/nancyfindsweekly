@@ -11,6 +11,7 @@ dashboard.html
 dashboard_data.json
 tasks.json
 benchmarks.json
+suggestions.json
 *.pptx
 *.output
 _*.js

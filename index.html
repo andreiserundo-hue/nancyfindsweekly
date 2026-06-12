@@ -107,6 +107,10 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .sug-t{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.6px}
 .sdot{width:9px;height:9px;border-radius:50%;display:inline-block}
 .sug-d{font-size:13px;color:#1A1430;margin:6px 0 10px;line-height:1.45}
+.sicon{color:#C9BFD0;cursor:pointer;font-size:14px;padding:0 3px;transition:color .15s}.sicon:hover{color:#C44B6E}
+.editedtag{font-size:9px;color:#8A8392;background:#F4EEF1;border-radius:6px;padding:2px 6px;margin-left:6px;letter-spacing:.3px}
+.sugedit{width:100%;min-height:74px;border:1px solid #C9BFD0;border-radius:9px;padding:9px 11px;font-family:inherit;font-size:13px;line-height:1.45;resize:vertical;margin-top:6px}
+.sugedit:focus{outline:none;border-color:#C44B6E;box-shadow:0 0 0 3px rgba(196,75,110,.12)}
 .addbtn{background:#F4EEF1;border:0;color:#8E2F4C;font-weight:700;font-size:12px;border-radius:8px;padding:7px 13px;cursor:pointer}
 .addbtn:hover{background:#C44B6E;color:#fff}.addbtn.solid{background:#C44B6E;color:#fff}.addbtn.solid:hover{filter:brightness(1.08)}
 .addrow{display:flex;gap:8px;margin:6px 0 8px}
@@ -321,10 +325,11 @@ async function pageCountries(){const d=await getRange(active.start,active.end,ac
   return '<h1>Sales by Country</h1><div class="cap">'+active.label+' · net revenue</div><div class="card"><table><tr><th>Country</th><th>Orders</th><th>Revenue</th><th>% Rev</th></tr>'+rows+'</table></div>';
 }
 async function pageStrategy(){
-  const [l7,d,tasks]=await Promise.all([getRange(...PRESETS['Last 7 Days']),getRange(active.start,active.end,active.st,active.et),fetch('/api/tasks').then(x=>x.json()).catch(()=>[])]);
+  const [l7,d,tasks,ov]=await Promise.all([getRange(...PRESETS['Last 7 Days']),getRange(active.start,active.end,active.st,active.et),fetch('/api/tasks').then(x=>x.json()).catch(()=>[]),fetch('/api/suggestions').then(x=>x.json()).catch(()=>({}))]);
+  window._sugOv=ov||{};
   const sug=[];
   (d.creatives||[]).filter(c=>c.buys>0&&c.roas>=1.75).sort((a,b)=>b.roas-a.roas).slice(0,3).forEach(c=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Scale '+clean(c.name).substring(0,30)+' ('+c.roas.toFixed(1)+'x, '+c.buys+' buys) into the ABO creative-test (HK$200/day, ~20 creatives).'}));
-  (d.landing||[]).filter(l=>l.spend>0&&l.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2).forEach(l=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Shift budget to '+clean(l.name).substring(0,30)+' ('+l.roas.toFixed(2)+'x) and route paid traffic through it.'}));
+  (d.landing||[]).filter(l=>l.spend>0&&l.roas>=1.5).sort((a,b)=>b.roas-a.roas).slice(0,2).forEach(l=>sug.push({c:'#1F9D6B',cat:'DOUBLE DOWN',t:'Shift budget to '+clean(l.name)+' ('+l.roas.toFixed(2)+'x) and route paid traffic through it.'}));
   (d.campaigns||[]).filter(c=>c.spend>0&&c.roas<1.2).sort((a,b)=>b.spend-a.spend).forEach(c=>sug.push({c:'#DB3B3B',cat:'FIX / CUT',t:'Rework or cut '+clean(c.name).substring(0,30)+' — '+usdH(c.spend)+' at '+c.roas.toFixed(2)+'x. Move toward the winning funnel or stop the bleed.'}));
   const wasteful=(d.creatives||[]).filter(c=>c.spend>500&&c.buys===0);
   if(wasteful.length)sug.push({c:'#DB3B3B',cat:'FIX / CUT',t:'Pause '+wasteful.length+' creative(s) spending with 0 purchases; rebudget to editorial/lifestyle angles.'});
@@ -334,14 +339,26 @@ async function pageStrategy(){
   sug.push({c:'#E0922F',cat:'REFRESH',t:'On the Scream LP, demote competitors below the 3 Nancy products they currently outrank.'});
   if(l7.shop.retPct>10)sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Clear the fulfillment backlog (returns '+l7.shop.retPct.toFixed(0)+'% L7D) — it caps volume and triggers chargeback/Shopify-flag risk.'});
   sug.push({c:'#8E2F4C',cat:'STRUCTURAL',t:'Escalate a 2nd Meta Business Manager / ad account — one ban halts all paid acquisition.'});
-  window._sug=sug;
-  const sugHtml=sug.map((s,i)=>{const url=firstUrl(s.t);return '<div class="sug"><div class="sug-t"><span class="sdot" style="background:'+s.c+'"></span><b style="color:'+s.c+'">'+s.cat+'</b></div><div class="sug-d">'+linkify(s.t)+'</div>'+(url?previewSlot(url):'')+'<button class="addbtn" onclick="addSug('+i+')">+ Add to board</button></div>';}).join('');
+  // apply saved edits / dismissals (keyed by a stable hash of the original text)
+  sug.forEach(s=>{s.key=hashStr(s.cat+'|'+s.t);});
+  const visible=sug.filter(s=>!(ov[s.key]&&ov[s.key].hidden));
+  visible.forEach(s=>{s.disp=(ov[s.key]&&ov[s.key].text)?ov[s.key].text:s.t;s.edited=!!(ov[s.key]&&ov[s.key].text);});
+  window._sug=visible;
+  const hiddenCount=sug.length-visible.length;
+  const sugHtml=visible.map((s,i)=>{
+    if(window._sugEdit===i){return '<div class="sug"><div class="sug-t"><span class="sdot" style="background:'+s.c+'"></span><b style="color:'+s.c+'">'+s.cat+'</b></div>'+
+      '<textarea class="sugedit" id="sugedit">'+escapeHtml(s.disp)+'</textarea>'+
+      '<div style="display:flex;gap:8px;margin-top:8px"><button class="addbtn solid" onclick="saveSugEdit('+i+')">Save</button><button class="addbtn" onclick="window._sugEdit=null;render()">Cancel</button></div></div>';}
+    const url=firstUrl(s.disp);
+    return '<div class="sug"><div class="sug-t"><span class="sdot" style="background:'+s.c+'"></span><b style="color:'+s.c+'">'+s.cat+'</b>'+(s.edited?'<span class="editedtag">edited</span>':'')+
+      '<span style="flex:1"></span><span class="sicon" title="edit" onclick="window._sugEdit='+i+';render()">✎</span><span class="sicon" title="dismiss" onclick="dismissSug('+i+')">×</span></div>'+
+      '<div class="sug-d">'+linkify(s.disp)+'</div>'+(url?previewSlot(url):'')+'<button class="addbtn" onclick="addSug('+i+')">+ Add to board</button></div>';}).join('');
   const open=tasks.filter(t=>!t.done), done=tasks.filter(t=>t.done);
   const openHtml=open.length?open.map(taskRow).join(''):'<div class="empty">No open tasks — add one above or from a suggestion.</div>';
   const doneHtml=done.length?done.map(taskRow).join(''):'<div class="empty">Nothing completed yet.</div>';
   return '<h1>Strategy &amp; Next Steps</h1><div class="cap">Suggestions auto-update with the date filter ('+active.label+') · your action board is shared with the team</div>'+
   '<div class="stratgrid">'+
-  '<div class="stratcard"><h2>💡 Suggested Actions</h2><div class="sub2">'+active.label+' ('+active.start+'→'+active.end+') · click + to add to the board</div>'+sugHtml+'</div>'+
+  '<div class="stratcard"><h2>💡 Suggested Actions</h2><div class="sub2">'+active.label+' ('+active.start+'→'+active.end+') · ✎ edit · × dismiss · + add to board'+((Object.keys(ov).length)?' · <a class="ilink" style="cursor:pointer" onclick="resetSug()">reset all</a>'+(hiddenCount?' ('+hiddenCount+' hidden)':''):'')+'</div>'+sugHtml+'</div>'+
   '<div class="stratcard"><h2>✅ Action Board</h2><div class="sub2">add your own next steps, check them off, delete what no longer fits</div>'+
     '<div class="addrow"><input id="newtask" maxlength="200" placeholder="Add a next step…" onkeydown="if(event.key===\'Enter\')addTask()"><button class="addbtn solid" onclick="addTask()">Add</button></div>'+
     '<div class="tlabel">OPEN ('+open.length+')</div><div>'+openHtml+'</div>'+
@@ -358,7 +375,11 @@ function linkify(text){return escapeHtml(text).replace(URLRE,m=>{const clean=m.r
 function previewSlot(url){return '<div class="lprev" data-url="'+escapeHtml(url)+'"></div>';}
 async function loadPreviews(){const els=document.querySelectorAll('.lprev[data-url]:not([data-done])');for(const el of els){el.setAttribute('data-done','1');const url=el.getAttribute('data-url');el.innerHTML='<div class="lprev-load">loading preview…</div>';try{const p=await fetch('/api/preview?url='+encodeURIComponent(url)).then(x=>x.json());if(p&&(p.title||p.image)){el.innerHTML='<a class="lprev-card" href="'+escapeHtml(p.url||url)+'" target="_blank" rel="noopener">'+(p.image?'<img class="lprev-img" src="'+escapeHtml(p.image)+'" onerror="this.style.display=\'none\'">':'')+'<div class="lprev-body"><div class="lprev-title">'+escapeHtml(p.title||p.host||url)+'</div>'+(p.desc?'<div class="lprev-desc">'+escapeHtml(p.desc)+'</div>':'')+'<div class="lprev-host">'+escapeHtml(p.host||'')+' ↗</div></div></a>';}else{el.innerHTML='<a class="lprev-host" href="'+escapeHtml(url)+'" target="_blank" rel="noopener">'+escapeHtml(url)+' ↗</a>';}}catch(e){el.innerHTML='';}}}
 async function addTask(){const el=document.getElementById('newtask');const text=(el.value||'').trim();if(!text)return;el.value='';await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});render();}
-async function addSug(i){const s=window._sug[i];if(!s)return;await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'['+s.cat+'] '+s.t})});render();}
+async function addSug(i){const s=window._sug[i];if(!s)return;await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'['+s.cat+'] '+(s.disp||s.t)})});render();}
+function hashStr(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return 'h'+(h>>>0).toString(36);}
+async function saveSugEdit(i){const s=window._sug[i];if(!s)return;const txt=(document.getElementById('sugedit').value||'').trim();window._sugEdit=null;if(!txt){render();return;}await fetch('/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:s.key,text:txt})});render();}
+async function dismissSug(i){const s=window._sug[i];if(!s)return;await fetch('/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:s.key,hidden:true})});render();}
+async function resetSug(){await fetch('/api/suggestions',{method:'DELETE'});render();}
 async function toggleTask(id,done){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({done})});render();}
 async function delTask(id){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'DELETE'});render();}
 const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy};

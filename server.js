@@ -14,6 +14,11 @@ const DEFAULT_TASKS=[{id:'seed-duo',text:'Test the New Blossom Duo Landing Page 
 function loadTasks(){try{return JSON.parse(fs.readFileSync(TASKS_FILE,'utf8'));}catch(e){return DEFAULT_TASKS.map(t=>({...t}));}}
 function saveTasks(t){try{fs.writeFileSync(TASKS_FILE,JSON.stringify(t,null,2));}catch(e){}}
 function readBody(req){return new Promise(r=>{let b='';req.on('data',c=>{b+=c;if(b.length>1e5)req.destroy();});req.on('end',()=>{try{r(JSON.parse(b||'{}'));}catch(e){r({});}});});}
+// ---- suggestion overrides (edits / dismissals, persisted) ----
+const SUG_FILE=DIR+'/suggestions.json';
+function loadSug(){try{return JSON.parse(fs.readFileSync(SUG_FILE,'utf8'));}catch(e){return {};}}
+function saveSug(o){try{fs.writeFileSync(SUG_FILE,JSON.stringify(o,null,2));}catch(e){}}
+
 // ---- link preview (OpenGraph scrape, cached) ----
 const previewCache={};
 function decodeEnt(s){return (s||'').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#0?39;/g,"'").replace(/&#x27;/gi,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ');}
@@ -83,6 +88,11 @@ http.createServer(async (req,res)=>{
       if(req.method==='POST'){const bd=await readBody(req);const text=(bd.text||'').toString().trim().slice(0,200);if(!text){res.writeHead(400,{'Content-Type':'application/json'});return res.end('{"error":"empty"}');}const task={id:'t'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36),text,done:false,ts:Date.now()};const t=loadTasks();t.unshift(task);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(task));}
       if(req.method==='PATCH'){const bd=await readBody(req);const id=u.searchParams.get('id');const t=loadTasks().map(x=>x.id===id?{...x,done:!!bd.done}:x);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
       if(req.method==='DELETE'){const id=u.searchParams.get('id');saveTasks(loadTasks().filter(x=>x.id!==id));res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+    }
+    if(u.pathname==='/api/suggestions'){
+      if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadSug()));}
+      if(req.method==='POST'){const bd=await readBody(req);const key=(bd.key||'').toString();if(key){const o=loadSug();const cur=o[key]||{};if(bd.text!==undefined)cur.text=(bd.text||'').toString().slice(0,400);if(bd.hidden!==undefined)cur.hidden=!!bd.hidden;o[key]=cur;saveSug(o);}res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+      if(req.method==='DELETE'){const key=u.searchParams.get('key');if(key){const o=loadSug();delete o[key];saveSug(o);}else saveSug({});res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
     }
     if(u.pathname==='/api/preview'){const url=u.searchParams.get('url')||'';if(!/^https?:\/\//i.test(url)){res.writeHead(400,{'Content-Type':'application/json'});return res.end('{"error":"bad url"}');}try{const d=await linkPreview(url);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(d));}catch(e){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({url,error:String(e&&e.message||e)}));}}
     if(u.pathname==='/api/benchmarks'){
