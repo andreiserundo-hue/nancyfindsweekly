@@ -13,6 +13,8 @@ tasks.json
 benchmarks.json
 suggestions.json
 signals.json
+anthropic_key.txt
+_refdeck/
 *.pptx
 *.output
 _*.js

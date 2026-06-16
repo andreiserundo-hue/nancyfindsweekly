@@ -154,6 +154,13 @@ tr.reached td{background:#F2FAF6 !important}
 .sigttl{font-size:13.5px;font-weight:700;color:#1A1430;line-height:1.3}
 .signote{font-size:12px;color:#8A8392;line-height:1.4;margin-top:3px}
 .sigacts{display:flex;align-items:center;gap:8px;flex-shrink:0}
+/* download progress overlay */
+.dlov{display:none;position:fixed;inset:0;background:rgba(26,20,48,.55);backdrop-filter:blur(3px);z-index:80;align-items:center;justify-content:center}
+.dlcard{background:#fff;border-radius:16px;padding:30px 40px;text-align:center;box-shadow:0 22px 55px rgba(0,0,0,.32);min-width:320px;max-width:420px}
+.spinner{width:44px;height:44px;border:4px solid #F0E6EC;border-top-color:#C44B6E;border-radius:50%;margin:0 auto 16px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dlmsg{font-family:Georgia,serif;font-size:17px;color:#1A1430;font-weight:700;line-height:1.3}
+.dlsub{font-size:12.5px;color:#8A8392;margin-top:7px;line-height:1.4}
 </style></head><body>
 <div class="nav">
   <div class="brand">Nancy Finds<small>LIVE DASHBOARD</small></div>
@@ -173,6 +180,7 @@ tr.reached td{background:#F2FAF6 !important}
   <div class="datebar" id="datebar"></div>
   <div class="sigbar" id="sigbar" style="display:none"></div>
   <div id="view"><div class="loading">Loading…</div></div>
+  <div class="dlov" id="dlov"><div class="dlcard"><div class="spinner" id="dlspin"></div><div class="dlmsg" id="dlmsg">Generating…</div><div class="dlsub" id="dlsub"></div></div></div>
 </div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><span class="mclose" onclick="closeModal()">×</span><div class="mbox" id="mbox"></div></div>
 <script>
@@ -201,7 +209,7 @@ function renderDatebar(){const db=document.getElementById('datebar');
   ' <label style="font-size:12.5px;color:#8A8392"><input type="checkbox" id="tchk" '+(active.st?'checked':'')+' onchange="document.getElementById(\'twrap\').style.display=this.checked?\'inline\':\'none\'"> Add time</label>'+
   '<span id="twrap" style="display:'+(active.st?'inline':'none')+'"> <input type="time" id="ts" value="'+(active.st||'00:00')+'"> <span style="color:#8A8392">→</span> <input type="time" id="te" value="'+(active.et||'23:59')+'"></span>'+
   ' <button class="pbtn on" onclick="applyRange()">Apply</button>'+
-  '<span style="flex:1"></span><a class="dlbtn" href="/api/pptx" download>⬇ Download PPTX</a>'+
+  '<span style="flex:1"></span><button class="dlbtn" onclick="downloadPptx()">⬇ Download PPTX</button>'+
   '<span style="margin-left:10px;color:#8A8392;font-size:12px">'+active.start+(active.start!==active.end?' → '+active.end:'')+(active.st?' · '+active.st+'–'+active.et:'')+'</span>';}
 function onRangeSel(){document.getElementById('customWrap').style.display=document.getElementById('rangeSel').value==='Custom'?'inline':'none';}
 function applyRange(){const sel=document.getElementById('rangeSel').value;let s,e;if(sel==='Custom'){s=document.getElementById('ds').value;e=document.getElementById('de').value;}else{s=PRESETS[sel][0];e=PRESETS[sel][1];}const useT=document.getElementById('tchk').checked;active={start:s,end:e,label:sel,st:useT?document.getElementById('ts').value:null,et:useT?document.getElementById('te').value:null};renderDatebar();render();}
@@ -217,6 +225,21 @@ function nextSteps(tab,d){
   if(tab==='scorecard'||tab==='overview'){items.push(['UNBLOCK','Clear the fulfillment backlog — it is capping volume and driving refunds.']);items.push(['ESCALATE','Push Meta to approve a 2nd Business Manager / ad account (single-account risk).']);}
   if(!items.length)items.push(['—','No actions flagged for this range.']);
   return '<div class="ns"><h3>NEXT STEPS / ACTIONS</h3>'+items.map(i=>'<div class="i"><span class="b">'+i[0]+'</span><span>'+i[1]+'</span></div>').join('')+'</div>';
+}
+
+// ---------- PPTX download with progress ----------
+async function downloadPptx(){
+  const ov=document.getElementById('dlov'),msg=document.getElementById('dlmsg'),sub=document.getElementById('dlsub'),sp=document.getElementById('dlspin');
+  sp.style.display='block';ov.style.display='flex';
+  msg.textContent='Building your weekly deck…';sub.textContent='Pulling live Glued + Shopify data and rendering 13 slides. This can take ~15–30s on the first run.';
+  try{
+    const r=await fetch('/api/pptx');
+    if(!r.ok)throw new Error('server returned '+r.status);
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Nancy Finds - Weekly Review.pptx';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+    sp.style.display='none';msg.textContent='✓ Your deck is ready';sub.textContent='Saved to your Downloads folder.';
+    setTimeout(()=>{ov.style.display='none';},1500);
+  }catch(e){sp.style.display='none';msg.textContent='Download failed';sub.textContent=(e.message||e)+' — please try again.';setTimeout(()=>{ov.style.display='none';},3000);}
 }
 
 // ---------- Situation Room (shared context synced across all tabs) ----------
