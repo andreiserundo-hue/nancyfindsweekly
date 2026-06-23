@@ -282,7 +282,7 @@ module.exports = async function(r30,r7,ry,out){
     s.addText("New brand · winners transplanted",{x:6.4,y:2.08,w:6.2,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     const ad=[["\"So Good, You'll Scream\"","On-creative winner → top hook + the LP theme"],["\"He Loves It Too\"","On-creative winner → 16 purchases (2nd-highest)"],["Rose Ads","Hello Nancy rose creatives re-shot for Nancy Finds"],["Bridge Pages","Funnel idea ported → lowered Meta rejection risk"]];
     ad.forEach((a,i)=>{const yy=2.5+i*0.72;s.addText(a[0],{x:6.4,y:yy,w:6.2,h:0.3,fontFace:FH,fontSize:14,bold:true,italic:true,color:C.berryDk});s.addText(a[1],{x:6.4,y:yy+0.3,w:6.2,h:0.3,fontFace:FB,fontSize:10.5,color:C.ink});});
-    callout(s,5.8,1.1,[{text:"WHY IT WORKED:  ",options:{bold:true,color:C.berryDk}},{text:"Porting battle-tested copy, creative and the bridge-page funnel skipped months of testing — the 'scream' hook and Rose ads were already validated on Hello Nancy. Nancy Finds inherited a proven playbook on day one; the job now is fitting it to Nancy Finds' catalog + Meta's stricter rules (see Bottlenecks).",options:{color:C.ink}}]);
+    callout(s,5.8,1.1,[{text:"WHY IT WORKED:  ",options:{bold:true,color:C.berryDk}},{text:say('pbWhy',"Porting battle-tested copy, creative and the bridge-page funnel skipped months of testing — the 'scream' hook and Rose ads were already validated on Hello Nancy. Nancy Finds inherited a proven playbook on day one; the job now is fitting it to Nancy Finds' catalog + Meta's stricter rules (see Bottlenecks)."),options:{color:C.ink}}]);
     pageno(s,P);})();
 
   // 11 PIGGYBACK
@@ -303,7 +303,7 @@ module.exports = async function(r30,r7,ry,out){
     s.addText([{text:'"The rose-shaped one that didn\'t fit the ranking but kept stealing the spotlight. Where Lem wins on raw air-pulse power, Blossom Duo plays a different game — a magnetic cap that flips between suction and a tapping mode, in a pocket-sized rose. The design-forward pick to watch."',options:{color:C.pinkLt,italic:true}}],{x:8.6,y:2.95,w:4.05,h:1.7,fontFace:FB,fontSize:11,valign:"top",lineSpacingMultiple:1.05});
     s.addShape(S.roundRect,{x:8.6,y:4.7,w:2.6,h:0.34,fill:{color:C.berry},line:{type:"none"},rectRadius:0.04});
     s.addText("→ nancyfinds.com",{x:8.6,y:4.7,w:2.6,h:0.34,fontFace:FB,fontSize:10,bold:true,color:C.white,align:"center",valign:"middle"});
-    callout(s,5.8,1.2,[{text:"WHY SPECIAL MENTION (not top 7):  ",options:{bold:true,color:C.berryDk}},{text:"Ranking Blossom Duo at/above Lem would cannibalize Hello Nancy's hero and dent credibility. A distinct-lane wildcard — 'rose + dual mechanism,' which Lem doesn't offer — is additive, not competitive: it captures rose-seekers, sends them to Nancy Finds, and leaves Lem's #1 volume intact.",options:{color:C.ink}}]);
+    callout(s,5.8,1.2,[{text:"WHY SPECIAL MENTION (not top 7):  ",options:{bold:true,color:C.berryDk}},{text:say('pgWhy',"Ranking Blossom Duo at/above Lem would cannibalize Hello Nancy's hero and dent credibility. A distinct-lane wildcard — 'rose + dual mechanism,' which Lem doesn't offer — is additive, not competitive: it captures rose-seekers, sends them to Nancy Finds, and leaves Lem's #1 volume intact."),options:{color:C.ink}}]);
     pageno(s,P);})();
 
   // 12 BOTTLENECKS
@@ -353,6 +353,16 @@ module.exports = async function(r30,r7,ry,out){
     s.addText([{text:"Each ad set = ",options:{color:C.pinkLt}},{text:"HK$200/day with ~20 creatives",options:{bold:true,color:C.white}},{text:". Kill any creative with ",options:{color:C.pinkLt}},{text:"0 purchases in 3 days",options:{bold:true,color:C.white}},{text:"; let winners run to ",options:{color:C.pinkLt}},{text:"5–7 days, then kill if ROAS < 1.5",options:{bold:true,color:C.white}},{text:".  Run across both domains — direct-to-website and via the Aura Scream LP.",options:{color:C.pinkLt}}],{x:0.8,y:5.65,w:11.8,h:0.6,fontFace:FB,fontSize:11.5,valign:"top",lineSpacingMultiple:1.05});
     s.addText("DECISIONS NEEDED:  backlog clear-by date · approve post-backlog scale-up · greenlight ABO creative-test · escalate Meta BM blocker",{x:0.6,y:6.5,w:12.2,h:0.5,fontFace:FB,fontSize:11,italic:true,color:C.grayLt});
     pageno(s,P);})();
+
+  // ============ CUSTOM SLIDES (user-added in the Weekly Deck tab) ============
+  (Array.isArray(deck.custom)?deck.custom:[]).forEach(cs=>{
+    if(!cs||cs.enabled===false)return;const dark=cs.bg==='dark';
+    const s=pptx.addSlide();P++;s.background={color:dark?C.dark:C.white};
+    if(cs.kicker)s.addText(String(cs.kicker),{x:0.5,y:0.5,w:12.3,h:0.3,fontFace:FB,fontSize:11,bold:true,color:C.berry,charSpacing:2});
+    s.addText(String(cs.title||'Slide'),{x:0.5,y:0.85,w:12.3,h:0.8,fontFace:FH,fontSize:30,bold:true,color:dark?C.white:C.ink});
+    s.addText(String(cs.body||''),{x:0.5,y:1.95,w:12.3,h:4.7,fontFace:FB,fontSize:16,color:dark?C.pinkLt:C.ink,valign:'top',lineSpacingMultiple:1.25});
+    pageno(s,P);
+  });
 
   await pptx.writeFile({fileName:out});
   return out;

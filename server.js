@@ -17,8 +17,8 @@ function readBody(req){return new Promise(r=>{let b='';req.on('data',c=>{b+=c;if
 // ---- weekly deck settings (slide toggles + prose overrides, persisted) ----
 const DECK_FILE=DIR+'/deck.json';
 // Aura advertorial funnel was killed — its two slides default OFF; everything else on.
-const DEFAULT_DECK={slides:{goal:true,scorecard:true,products:true,countries:true,campaigns:true,bridge:true,aura:false,reframe:false,creatives:true,playbook:true,piggyback:true,bottlenecks:true,summary:true},prose:{}};
-function loadDeck(){try{const d=JSON.parse(fs.readFileSync(DECK_FILE,'utf8'));return {slides:Object.assign({},DEFAULT_DECK.slides,d.slides||{}),prose:d.prose||{}};}catch(e){return JSON.parse(JSON.stringify(DEFAULT_DECK));}}
+const DEFAULT_DECK={slides:{goal:true,scorecard:true,products:true,countries:true,campaigns:true,bridge:true,aura:false,reframe:false,creatives:true,playbook:true,piggyback:true,bottlenecks:true,summary:true},prose:{},custom:[]};
+function loadDeck(){try{const d=JSON.parse(fs.readFileSync(DECK_FILE,'utf8'));return {slides:Object.assign({},DEFAULT_DECK.slides,d.slides||{}),prose:d.prose||{},custom:Array.isArray(d.custom)?d.custom:[]};}catch(e){return JSON.parse(JSON.stringify(DEFAULT_DECK));}}
 function saveDeck(d){try{fs.writeFileSync(DECK_FILE,JSON.stringify(d,null,2));}catch(e){}}
 
 // ---- shared "Situation Room" signals (synced context across all tabs) ----
@@ -91,17 +91,19 @@ async function getRange(sd,ed,st,et){const timed=!!(st&&et);const k=sd+'_'+ed+'_
 // ---- optional AI prose for the weekly deck (set ANTHROPIC_API_KEY or anthropic_key.txt) ----
 function anthropicKey(){if(process.env.ANTHROPIC_API_KEY)return process.env.ANTHROPIC_API_KEY.trim();try{return fs.readFileSync(DIR+'/anthropic_key.txt','utf8').trim();}catch(e){return null;}}
 function anthropicReq(key,body){return new Promise((res,rej)=>{const data=JSON.stringify(body);const req=https.request({hostname:'api.anthropic.com',path:'/v1/messages',method:'POST',headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','content-length':Buffer.byteLength(data)}},r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>{try{res(JSON.parse(b));}catch(e){rej(e);}});});req.on('error',rej);req.setTimeout(30000,()=>req.destroy(new Error('timeout')));req.write(data);req.end();});}
-async function generateNarration(r30,r7,ry){
-  const key=anthropicKey();if(!key)return null;
-  const sum={
+function liveContext(r30,r7,ry){return {
     L30D:{net:Math.round(r30.shop.net),spendUSD:Math.round(r30.meta.spendUSD),trueRoas:+r30.trueRoas.toFixed(2),metaRoas:+r30.meta.metaRoas.toFixed(2),orders:r30.shop.orders,retPct:+r30.shop.retPct.toFixed(1)},
     L7D:{net:Math.round(r7.shop.net),spendUSD:Math.round(r7.meta.spendUSD),trueRoas:+r7.trueRoas.toFixed(2),metaRoas:+r7.meta.metaRoas.toFixed(2),orders:r7.shop.orders,retPct:+r7.shop.retPct.toFixed(1)},
-    topProducts:Object.entries(r30.shop.products).map(([n,p])=>({n,units:p.units})).sort((a,b)=>b.units-a.units).slice(0,5),
-    topCountries:Object.entries(r30.shop.countries).map(([c,v])=>({c,orders:v.orders,net:Math.round(v.net)})).sort((a,b)=>b.net-a.net).slice(0,5),
-    campaigns:(r7.campaigns||[]).filter(c=>c.spend>0).map(c=>({n:c.name,roas:+(c.roas||0).toFixed(2),buys:c.buys})).slice(0,6),
-    landing:(r7.landing||[]).filter(l=>l.spend>0).map(l=>({n:l.name,roas:+(l.roas||0).toFixed(2),buys:l.buys})).slice(0,8),
-    creatives:(r7.creatives||[]).filter(c=>c.spend>0).map(c=>({n:c.name,roas:+(c.roas||0).toFixed(2),buys:c.buys})).slice(0,6)
-  };
+    Yesterday:{net:Math.round(ry.shop.net),spendUSD:Math.round(ry.meta.spendUSD),trueRoas:+ry.trueRoas.toFixed(2),orders:ry.shop.orders},
+    topProducts:Object.entries(r30.shop.products).map(([n,p])=>({n,units:p.units,rev:Math.round(p.rev||0)})).sort((a,b)=>b.units-a.units).slice(0,6),
+    topCountries:Object.entries(r30.shop.countries).map(([c,v])=>({c,orders:v.orders,net:Math.round(v.net)})).sort((a,b)=>b.net-a.net).slice(0,6),
+    campaigns:(r7.campaigns||[]).filter(c=>c.spend>0).map(c=>({n:c.name,roas:+(c.roas||0).toFixed(2),buys:c.buys,spendUSD:Math.round(c.spend/FX)})).slice(0,8),
+    landing:(r7.landing||[]).filter(l=>l.spend>0).map(l=>({n:l.name,roas:+(l.roas||0).toFixed(2),buys:l.buys})).slice(0,10),
+    creatives:(r7.creatives||[]).filter(c=>c.spend>0).map(c=>({n:c.name,roas:+(c.roas||0).toFixed(2),buys:c.buys})).slice(0,8)
+  };}
+async function generateNarration(r30,r7,ry){
+  const key=anthropicKey();if(!key)return null;
+  const sum=liveContext(r30,r7,ry);
   const prompt='You are an analyst writing concise prose for Nancy Finds (rose-toy e-commerce) weekly paid-acquisition deck. Using ONLY the JSON data, reply with ONLY a JSON object (no markdown) whose values are plain strings, 1-2 sentences each, factual, never mention the brand "biird". Keys: "goal" (forward play: scaling the best LP + winning creatives toward $1,000/day while the fulfillment backlog clears), "score1" and "score2" (two scorecard read lines), "prod" (product concentration), "geo" (geography), "camp" (campaign read vs the 1.5 ROAS floor), "bridge" (bridge landing pages), "aura" (the two Aura advertorials), "cre" (creatives spend-vs-ROAS pattern). DATA: '+JSON.stringify(sum);
   try{const r=await anthropicReq(key,{model:'claude-haiku-4-5-20251001',max_tokens:1100,messages:[{role:'user',content:prompt}]});const txt=(r&&r.content&&r.content[0]&&r.content[0].text)||'';const m=txt.match(/\{[\s\S]*\}/);return m?JSON.parse(m[0]):null;}catch(e){return null;}
 }
@@ -113,7 +115,7 @@ http.createServer(async (req,res)=>{
   if(AUTH && (req.headers.authorization||'')!==AUTH){res.writeHead(401,{'WWW-Authenticate':'Basic realm="Nancy Finds Weekly"'});return res.end('Authentication required');}
   try{
     if(u.pathname==='/'||u.pathname==='/index.html'){const h=fs.readFileSync(DIR+'/index.html');res.writeHead(200,{'Content-Type':'text/html'});return res.end(h);}
-    if(u.pathname.startsWith('/creative_imgs/')){const fp=DIR+decodeURIComponent(u.pathname);if(fs.existsSync(fp)){res.writeHead(200,{'Content-Type':MIME[path.extname(fp)]||'application/octet-stream'});return res.end(fs.readFileSync(fp));}res.writeHead(404);return res.end();}
+    if(u.pathname.startsWith('/creative_imgs/')||u.pathname.startsWith('/assets/')){const fp=DIR+decodeURIComponent(u.pathname);if(fp.indexOf(DIR)===0&&fs.existsSync(fp)){res.writeHead(200,{'Content-Type':MIME[path.extname(fp)]||'application/octet-stream'});return res.end(fs.readFileSync(fp));}res.writeHead(404);return res.end();}
     if(u.pathname==='/api/range'){const sd=u.searchParams.get('start'),ed=u.searchParams.get('end'),st=u.searchParams.get('st')||'',et=u.searchParams.get('et')||'';const d=await getRange(sd,ed,st,et);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(d));}
     if(u.pathname==='/api/hourly'){const date=u.searchParams.get('date');await gluedInit();const j=await gluedCall('query_campaign_hourly',{workspace_id:WS,date_range:'custom',start_date:date,end_date:addDay(date),metrics:['spend','revenue','roas','purchase_count']});res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(j||{rows:[]}));}
     if(u.pathname==='/api/pptx'){const now=new Date();const yd=isoHK(new Date(now-86400000)),l7=isoHK(new Date(now-7*86400000)),l30=isoHK(new Date(now-30*86400000));const [r30,r7,ry]=await Promise.all([getRange(l30,yd),getRange(l7,yd),getRange(yd,yd)]);
@@ -126,9 +128,20 @@ http.createServer(async (req,res)=>{
       if(req.method==='PATCH'){const bd=await readBody(req);const id=u.searchParams.get('id');const t=loadTasks().map(x=>x.id===id?{...x,done:!!bd.done}:x);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
       if(req.method==='DELETE'){const id=u.searchParams.get('id');saveTasks(loadTasks().filter(x=>x.id!==id));res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
     }
+    if(u.pathname==='/api/ask'&&req.method==='POST'){
+      const bd=await readBody(req);const key=anthropicKey();
+      if(!key){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({reply:'The AI assistant isn\'t enabled yet. Add an ANTHROPIC_API_KEY on the server (Render → your service → Environment) or an anthropic_key.txt file, then redeploy — after that I can answer questions about Nancy Finds\' live data.'}));}
+      const now=new Date();const yd=isoHK(new Date(now-86400000)),l7=isoHK(new Date(now-7*86400000)),l30=isoHK(new Date(now-30*86400000));
+      let ctx={};try{const [r30,r7,ry]=await Promise.all([getRange(l30,yd),getRange(l7,yd),getRange(yd,yd)]);ctx=liveContext(r30,r7,ry);}catch(e){}
+      const sys='You are the Nancy Finds analytics assistant, embedded in their live paid-acquisition dashboard. Nancy Finds is a rose-toy e-commerce brand (sister brand: Hello Nancy). Answer the user concisely and practically using the DATA JSON below. Conventions: all USD; True ROAS = net Shopify revenue ÷ Meta spend; ROAS floor 1.5, target 2.0; spend is in HKD on Glued but DATA is already USD. If something isn\'t in the data, say so rather than inventing it. Never mention the brand "biird". Prefer short, specific answers with concrete numbers and clear recommendations. DATA: '+JSON.stringify(ctx);
+      const msgs=(bd.messages||[]).slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content||'').slice(0,4000)}));
+      if(!msgs.length){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({reply:'Ask me anything about Nancy Finds — e.g. "why did ROAS drop last week?" or "which creative should I scale?"'}));}
+      try{const r=await anthropicReq(key,{model:'claude-haiku-4-5-20251001',max_tokens:900,system:sys,messages:msgs});const txt=(r&&r.content&&r.content[0]&&r.content[0].text)||(r&&r.error&&r.error.message)||'(no response)';res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({reply:txt}));}
+      catch(e){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({reply:'Error reaching the AI: '+(e&&e.message||e)}));}
+    }
     if(u.pathname==='/api/deck'){
       if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadDeck()));}
-      if(req.method==='PUT'){const bd=await readBody(req);const cur=loadDeck();const next={slides:Object.assign({},cur.slides,bd.slides||{}),prose:Object.assign({},cur.prose,bd.prose||{})};saveDeck(next);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+      if(req.method==='PUT'){const bd=await readBody(req);const cur=loadDeck();const next={slides:Object.assign({},cur.slides,bd.slides||{}),prose:Object.assign({},cur.prose,bd.prose||{}),custom:Array.isArray(bd.custom)?bd.custom.slice(0,30):cur.custom};saveDeck(next);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
     }
     if(u.pathname==='/api/signals'){
       if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadSignals()));}

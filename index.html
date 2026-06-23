@@ -195,6 +195,27 @@ tr.reached td{background:#F2FAF6 !important}
 .pced:hover{background:rgba(196,75,110,.08)}
 .pced:focus{background:#fff;box-shadow:0 0 0 2px #C44B6E;border-bottom-color:transparent}
 .pv.dark .pced:focus{background:rgba(255,255,255,.12)}
+/* AI assistant */
+.askfab{position:fixed;right:22px;bottom:22px;z-index:70;background:#1A1430;color:#fff;border:0;border-radius:24px;padding:12px 18px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(26,20,48,.34);transition:transform .12s,box-shadow .15s}
+.askfab:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(26,20,48,.42)}
+.askpanel{position:fixed;right:22px;bottom:22px;z-index:71;width:380px;max-width:calc(100vw - 28px);height:560px;max-height:calc(100vh - 40px);background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(26,20,48,.4);display:none;flex-direction:column;overflow:hidden}
+.askpanel.open{display:flex}
+.askhead{background:#1A1430;color:#fff;padding:14px 18px;font-family:Georgia,serif;font-weight:700;font-size:16px;display:flex;align-items:center}
+.askx{cursor:pointer;font-size:24px;font-weight:300;line-height:1}
+.askmsgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#F4EEF1}
+.askm{padding:10px 13px;border-radius:12px;font-size:13.5px;line-height:1.45;max-width:88%;white-space:normal}
+.askm.a{background:#fff;color:#1A1430;align-self:flex-start;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.askm.u{background:#C44B6E;color:#fff;align-self:flex-end}
+.askin{display:flex;gap:8px;padding:12px;border-top:1px solid #EEE3E9;background:#fff}
+.askin input{flex:1;border:1px solid #E7DFE4;border-radius:10px;padding:10px 12px;font-size:13.5px}
+.askin input:focus{outline:none;border-color:#C44B6E;box-shadow:0 0 0 3px rgba(196,75,110,.12)}
+.askin button{background:#C44B6E;color:#fff;border:0;border-radius:10px;padding:0 15px;font-size:16px;cursor:pointer}
+/* custom slide controls */
+.pvadd{display:block;margin:0 auto 24px;background:#1F9D6B;color:#fff;border:0;border-radius:10px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer}
+.pvadd:hover{filter:brightness(1.07)}
+.pvcustombar{display:flex;gap:8px;align-items:center}
+.pvbar{flex:1;height:13px;background:#F4EEF1;border-radius:3px;overflow:hidden}
+.pvbar>div{height:100%;background:#C44B6E}
 </style></head><body>
 <div class="nav">
   <div class="brand">Nancy Finds<small>LIVE DASHBOARD</small></div>
@@ -216,6 +237,12 @@ tr.reached td{background:#F2FAF6 !important}
   <div class="sigbar" id="sigbar" style="display:none"></div>
   <div id="view"><div class="loading">Loading…</div></div>
   <div class="dlov" id="dlov"><div class="dlcard"><div class="spinner" id="dlspin"></div><div class="dlmsg" id="dlmsg">Generating…</div><div class="dlsub" id="dlsub"></div></div></div>
+<button class="askfab" id="askfab" onclick="askToggle()">✨ Ask Nancy AI</button>
+<div class="askpanel" id="askpanel">
+  <div class="askhead">✨ Nancy AI <span style="flex:1"></span><span class="askx" onclick="askToggle()">×</span></div>
+  <div class="askmsgs" id="askmsgs"></div>
+  <div class="askin"><input id="askinput" placeholder="Ask about your data…" onkeydown="if(event.key==='Enter')askSend()"><button onclick="askSend()">➤</button></div>
+</div>
 </div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><span class="mclose" onclick="closeModal()">×</span><div class="mbox" id="mbox"></div></div>
 <script>
@@ -276,6 +303,17 @@ async function downloadPptx(){
     setTimeout(()=>{ov.style.display='none';},1500);
   }catch(e){sp.style.display='none';msg.textContent='Download failed';sub.textContent=(e.message||e)+' — please try again.';setTimeout(()=>{ov.style.display='none';},3000);}
 }
+
+// ---------- AI assistant ----------
+let _ask=[];
+function askMd(t){return escapeHtml(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
+function askRender(){const box=document.getElementById('askmsgs');box.innerHTML=_ask.map(m=>'<div class="askm '+(m.role==='user'?'u':'a')+'">'+askMd(m.content)+'</div>').join('');box.scrollTop=box.scrollHeight;}
+function askToggle(){const p=document.getElementById('askpanel');const open=p.classList.toggle('open');document.getElementById('askfab').style.display=open?'none':'block';if(open){if(!_ask.length){_ask.push({role:'assistant',content:'Hi! I can answer questions about Nancy Finds using your live data — e.g. *“why did ROAS drop last week?”*, *“which creative should I scale?”*, *“summarize yesterday vs the L7D average.”*'});askRender();}document.getElementById('askinput').focus();}}
+async function askSend(){const el=document.getElementById('askinput');const q=(el.value||'').trim();if(!q)return;el.value='';_ask.push({role:'user',content:q});_ask.push({role:'assistant',content:'…'});askRender();
+  let send=_ask.filter(m=>m.content!=='…');while(send.length&&send[0].role==='assistant')send=send.slice(1);
+  try{const r=await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:send})}).then(x=>x.json());_ask[_ask.length-1]={role:'assistant',content:r.reply||'(no reply)'};}
+  catch(e){_ask[_ask.length-1]={role:'assistant',content:'Error: '+(e.message||e)};}
+  askRender();}
 
 // ---------- Situation Room (shared context synced across all tabs) ----------
 const SIGIMP={risk:{c:'#DB3B3B',i:'⚠'},test:{c:'#E0922F',i:'🧪'},win:{c:'#1F9D6B',i:'✅'},info:{c:'#4A3D66',i:'•'}};
@@ -560,13 +598,15 @@ async function pageDeck(){
   const sale=saleable.map(n=>({n,u:(prod[n]||{}).units||0,r:(prod[n]||{}).rev||0})).sort((a,b)=>b.u-a.u);
   const su=sale.reduce((a,p)=>a+p.u,0),sr=sale.reduce((a,p)=>a+p.r,0);const top3=[DP.hlG,DP.hlY,DP.hlB];
   let p3='<table class="pvtab"><tr><th style="text-align:left">SALEABLE PRODUCT</th><th>UNITS</th><th>REVENUE</th><th>% UNITS</th></tr>';
-  sale.forEach((p,i)=>{p3+='<tr'+(i<3?' style="background:'+top3[i]+'"':'')+'><td style="text-align:left;font-weight:'+(i<3?700:400)+'">'+p.n+'</td><td><b>'+p.u+'</b></td><td>'+usd(p.r)+'</td><td>'+Math.round(p.u/prodTot*100)+'%</td></tr>';});
+  const maxU=(sale[0]&&sale[0].u)||1;
+  sale.forEach((p,i)=>{p3+='<tr'+(i<3?' style="background:'+top3[i]+'"':'')+'><td style="text-align:left;font-weight:'+(i<3?700:400)+'">'+p.n+'</td><td><div class="pvcustombar"><div class="pvbar"><div style="width:'+(p.u/maxU*100)+'%"></div></div><b style="min-width:26px;text-align:right">'+p.u+'</b></div></td><td>'+usd(p.r)+'</td><td>'+Math.round(p.u/prodTot*100)+'%</td></tr>';});
   p3+='<tr style="background:'+DP.pinkBox+';font-weight:700;color:'+DP.berryDk+'"><td style="text-align:left">Saleable total</td><td>'+su+'</td><td>'+usd(sr)+'</td><td>'+Math.round(su/prodTot*100)+'%</td></tr></table>';
   const prodFb=(sale[0]?sale[0].n:'Blossom Duo')+' ('+(sale[0]?sale[0].u:0)+' units / '+Math.round((sale[0]?sale[0].u:0)/prodTot*100)+'%) is the runaway hero. The suction line = '+su+' of '+prodTot+' units ('+Math.round(su/prodTot*100)+'%). Concentrating spend on this line — not the full catalog — was the turning point.';
   const s3=kt("WHAT'S SELLING · THE TURNING POINT",'Orders by Product')+p3+'<div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berryDk+'">WHY THIS MATTERS:  </b>'+pced(prose,'prod',prodFb)+'</div>';
   // ===== S4 COUNTRIES =====
   let c4='<table class="pvtab"><tr><th style="text-align:left">COUNTRY</th><th>ORDERS</th><th>REVENUE</th><th>% REV</th></tr>';
-  coArr.slice(0,8).forEach(([c,v],i)=>{c4+='<tr'+(i<3?' style="background:'+top3[i]+'"':'')+'><td style="text-align:left;font-weight:'+(i<3?700:400)+'">'+c+'</td><td>'+v.orders+'</td><td>'+usd(v.net)+'</td><td>'+Math.round(v.net/netTot*100)+'%</td></tr>';});
+  const maxN=(coArr[0]&&coArr[0][1].net)||1;
+  coArr.slice(0,8).forEach(([c,v],i)=>{c4+='<tr'+(i<3?' style="background:'+top3[i]+'"':'')+'><td style="text-align:left;font-weight:'+(i<3?700:400)+'">'+c+'</td><td>'+v.orders+'</td><td><div class="pvcustombar"><div class="pvbar"><div style="width:'+(v.net/maxN*100)+'%"></div></div><b style="min-width:56px;text-align:right">'+usd(v.net)+'</b></div></td><td>'+Math.round(v.net/netTot*100)+'%</td></tr>';});
   c4+='</table>';
   const c0=coArr[0];const geoFb=(c0?c0[0]:'United States')+' is '+(c0?Math.round(c0[1].orders/ordTot*100):0)+'% of orders and '+(c0?Math.round(c0[1].net/netTot*100):0)+'% of revenue — campaigns target ‘Top 15 Countries’ but demand concentrates there. Weight budget & fulfillment toward '+(c0?c0[0]:'the US')+', and test '+(c0?c0[0]:'US')+'-only ad sets.';
   const s4=kt('GEOGRAPHY · WHERE SALES COME FROM','Sales by Country')+c4+'<div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berryDk+'">READ:  </b>'+pced(prose,'geo',geoFb)+'</div>';
@@ -593,7 +633,9 @@ async function pageDeck(){
   (aur.length?aur:[{name:'Rose Toys Scream',spend:0,roas:0,buys:0}]).forEach(l=>{const r7v=(m7l[l.name]||{}).roas;a7+='<tr><td style="text-align:left;font-weight:700">'+clean(l.name).substring(0,26)+'</td><td>'+usdH(l.spend)+'</td><td style="color:'+rcd(l.roas||0)+';font-weight:700">'+(l.roas||0).toFixed(2)+'</td><td style="color:'+(r7v==null?DP.grayLt:rcd(r7v))+'">'+(r7v==null?'—':r7v.toFixed(2))+'</td><td>'+(l.buys||0)+'</td></tr>';});
   a7+='</table>';
   const auraFb='The Scream advertorial carried the funnel because it mirrors the winning ad copy; the “Best Rose Toys 2026” version bled and was cut. Pair Scream with the new editorial creatives to re-lift ROAS.';
-  const s7=kt('LANDING PAGES · AURA ADVERTORIALS','Aura Landing Pages')+a7+'<div style="margin-top:12px;background:'+DP.pink+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berry+'">THE READ  </b><br>'+pced(prose,'aura',auraFb)+'</div>';
+  const s7=kt('LANDING PAGES · AURA ADVERTORIALS','Aura Landing Pages')+
+    '<div style="display:flex;gap:14px;margin-top:14px"><div style="flex:0 0 360px"><img src="assets/aura_scream_lp.png" style="width:175px;height:230px;object-fit:contain;background:#000;border-radius:6px;vertical-align:top"><img src="assets/aura_best_lp.png" style="width:175px;height:230px;object-fit:contain;background:#000;border-radius:6px;margin-left:6px;vertical-align:top"></div><div style="flex:1">'+a7+'</div></div>'+
+    '<div style="margin-top:12px;background:'+DP.pink+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berry+'">THE READ  </b><br>'+pced(prose,'aura',auraFb)+'</div>';
   // ===== S8 REFRAME (static) =====
   const rfcol=(tag,col,head,pts)=>'<div style="flex:1;background:'+DP.pink+';border:1.5px solid '+col+';border-radius:10px;padding:14px"><span style="background:'+col+';color:#fff;font-size:11px;font-weight:700;border-radius:5px;padding:3px 9px">'+tag+'</span><div style="font-family:Georgia,serif;font-size:18px;font-weight:700;margin:8px 0 4px">'+head+'</div>'+pts.map(p=>'<div style="font-size:12px;margin:4px 0"><span style="color:'+col+'">› </span>'+p+'</div>').join('')+'</div>';
   const s8=kt('FUNNEL STUDY · THE TWO ADVERTORIALS','Landing Page Study & Reframe')+'<div style="display:flex;gap:14px;margin-top:14px">'+rfcol('KILLED ~MAY 22',DP.red,'“Best Rose Toys 2026”',['Neutral, intellectual tone','Broke scent-trail from ‘scream’ copy','No add-to-carts for 3 days','Bled at 0.08x — cut'])+rfcol('KEPT & REFRAMED',DP.amber,'“Rose Toys Scream”',['Matches winning ad copy exactly','Blossom Duo #1 — ‘which to buy’','Competitors reframed as starter','Best-performing Aura LP'])+'</div><div style="margin-top:14px;background:'+DP.dark+';border-radius:10px;padding:14px 16px;color:'+DP.pink+';font-size:13px"><b style="color:'+DP.berry+'">THE REFRAME DIRECTIVE — LANDED.</b> Competitors boxed as lesser options while Blossom Duo owns ‘which one should I actually buy.’</div>';
@@ -605,8 +647,8 @@ async function pageDeck(){
   const creFb='The big studio shots eat most spend at low ROAS while small-budget editorial / lifestyle angles punch far above their spend. Feed budget to the new editorial winners via the ABO creative-test.';
   const s9=kt('DOUBLE DOWN VS CUT','Creative — Ads Analysis')+'<div style="display:flex;gap:10px;margin-top:14px">'+(creCards||'<div style="color:'+DP.gray+'">No creative spend in range</div>')+'</div><div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berryDk+'">THE PATTERN:  </b>'+pced(prose,'cre',creFb)+'</div>';
   // ===== S10 PLAYBOOK / S11 PIGGYBACK (static) =====
-  const s10=kt('PLAYBOOK TRANSFER · PROVEN WINNERS','Hello Nancy → Nancy Finds')+'<div style="display:flex;gap:16px;margin-top:16px;align-items:stretch"><div style="flex:1;background:'+DP.card+';border-radius:10px;padding:16px;color:#fff"><div style="color:'+DP.berry+';font-weight:700;letter-spacing:2px">HELLO NANCY</div><div style="font-size:12px;color:'+DP.grayLt+';font-style:italic;margin-bottom:8px">Sister brand · proven at scale</div>'+['Winning on-creative text hooks','Rose-toy ad creatives','Advertorial / listicle structure','Bridge-page funnel idea'].map(t=>'<div style="font-size:13px;margin:6px 0;color:'+DP.pink+'">✓ '+t+'</div>').join('')+'</div><div style="flex:1;background:'+DP.pink+';border:1.5px solid '+DP.berry+';border-radius:10px;padding:16px"><div style="color:'+DP.berryDk+';font-weight:700;letter-spacing:2px">NANCY FINDS</div><div style="font-size:12px;color:'+DP.gray+';font-style:italic;margin-bottom:8px">New brand · winners transplanted</div>'+[['“So Good, You\'ll Scream”','→ top hook + LP theme'],['“He Loves It Too”','→ 2nd-highest purchases'],['Rose Ads','re-shot for Nancy Finds'],['Bridge Pages','→ lowered Meta rejection']].map(a=>'<div style="margin:6px 0"><b style="font-family:Georgia,serif;font-style:italic;color:'+DP.berryDk+'">'+a[0]+'</b> <span style="font-size:12px">'+a[1]+'</span></div>').join('')+'</div></div><div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:13px"><b style="color:'+DP.berryDk+'">WHY IT WORKED:  </b>Porting battle-tested copy, creative and the bridge-page funnel skipped months of testing — Nancy Finds inherited a proven playbook on day one.</div>';
-  const s11=kt('GROWTH LEVER · CROSS-BRAND PLACEMENT','Piggyback a Proven Article')+'<div style="display:flex;gap:16px;margin-top:16px"><div style="flex:1;background:'+DP.pink+';border-radius:10px;padding:14px"><div style="color:'+DP.berryDk+';font-weight:700">THE ASSET (Hello Nancy)</div><div style="font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:15px;margin:6px 0">“7 Suction Toys So Good, You\'ll Want to Cheat”</div>'+[['1','Lem — Hello Nancy',1],['2','Namii 2',0],['3','Sona 2 — LELO',0],['4','Avo — Hello Nancy',1],['5','Satisfyer Pro 2',0]].map(r=>'<div style="font-size:12px;margin:3px 0;color:'+(r[2]?DP.ink:DP.gray)+'"><b style="color:'+(r[2]?DP.berry:DP.grayLt)+'">'+r[0]+'</b>  '+r[1]+'</div>').join('')+'</div><div style="flex:1;background:'+DP.dark+';border-radius:10px;padding:14px;color:#fff"><div style="color:'+DP.berry+';font-weight:700">THE MOVE — EDITOR\'S WILDCARD</div><div style="font-family:Georgia,serif;font-size:18px;font-weight:700;margin:6px 0">Blossom Duo</div><div style="font-size:12px;color:'+DP.pink+';font-style:italic">The rose-shaped pick that kept stealing the spotlight — a magnetic cap that flips between suction and tapping. The design-forward pick to watch. → nancyfinds.com</div></div></div><div style="margin-top:12px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:13px"><b style="color:'+DP.berryDk+'">WHY SPECIAL MENTION:  </b>A distinct-lane wildcard is additive, not competitive — captures rose-seekers without cannibalizing Hello Nancy\'s hero.</div>';
+  const s10=kt('PLAYBOOK TRANSFER · PROVEN WINNERS','Hello Nancy → Nancy Finds')+'<div style="display:flex;gap:16px;margin-top:16px;align-items:stretch"><div style="flex:1;background:'+DP.card+';border-radius:10px;padding:16px;color:#fff"><div style="color:'+DP.berry+';font-weight:700;letter-spacing:2px">HELLO NANCY</div><div style="font-size:12px;color:'+DP.grayLt+';font-style:italic;margin-bottom:8px">Sister brand · proven at scale</div>'+['Winning on-creative text hooks','Rose-toy ad creatives','Advertorial / listicle structure','Bridge-page funnel idea'].map(t=>'<div style="font-size:13px;margin:6px 0;color:'+DP.pink+'">✓ '+t+'</div>').join('')+'</div><div style="flex:1;background:'+DP.pink+';border:1.5px solid '+DP.berry+';border-radius:10px;padding:16px"><div style="color:'+DP.berryDk+';font-weight:700;letter-spacing:2px">NANCY FINDS</div><div style="font-size:12px;color:'+DP.gray+';font-style:italic;margin-bottom:8px">New brand · winners transplanted</div>'+[['“So Good, You\'ll Scream”','→ top hook + LP theme'],['“He Loves It Too”','→ 2nd-highest purchases'],['Rose Ads','re-shot for Nancy Finds'],['Bridge Pages','→ lowered Meta rejection']].map(a=>'<div style="margin:6px 0"><b style="font-family:Georgia,serif;font-style:italic;color:'+DP.berryDk+'">'+a[0]+'</b> <span style="font-size:12px">'+a[1]+'</span></div>').join('')+'</div></div><div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:13px"><b style="color:'+DP.berryDk+'">WHY IT WORKED:  </b>'+pced(prose,'pbWhy','Porting battle-tested copy, creative and the bridge-page funnel skipped months of testing — Nancy Finds inherited a proven playbook on day one.')+'</div>';
+  const s11=kt('GROWTH LEVER · CROSS-BRAND PLACEMENT','Piggyback a Proven Article')+'<div style="display:flex;gap:16px;margin-top:16px"><div style="flex:1;background:'+DP.pink+';border-radius:10px;padding:14px"><div style="color:'+DP.berryDk+';font-weight:700">THE ASSET (Hello Nancy)</div><div style="font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:15px;margin:6px 0">“7 Suction Toys So Good, You\'ll Want to Cheat”</div>'+[['1','Lem — Hello Nancy',1],['2','Namii 2',0],['3','Sona 2 — LELO',0],['4','Avo — Hello Nancy',1],['5','Satisfyer Pro 2',0]].map(r=>'<div style="font-size:12px;margin:3px 0;color:'+(r[2]?DP.ink:DP.gray)+'"><b style="color:'+(r[2]?DP.berry:DP.grayLt)+'">'+r[0]+'</b>  '+r[1]+'</div>').join('')+'</div><div style="flex:1;background:'+DP.dark+';border-radius:10px;padding:14px;color:#fff;display:flex;gap:12px"><img src="assets/blossom_duo_wildcard.jpg" style="width:120px;height:190px;object-fit:cover;border-radius:6px;flex-shrink:0"><div><div style="color:'+DP.berry+';font-weight:700">THE MOVE — WILDCARD</div><div style="font-family:Georgia,serif;font-size:18px;font-weight:700;margin:6px 0">Blossom Duo</div><div style="font-size:12px;color:'+DP.pink+';font-style:italic">The rose-shaped pick that kept stealing the spotlight — a magnetic cap that flips between suction and tapping. The design-forward pick to watch. → nancyfinds.com</div></div></div></div><div style="margin-top:12px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:13px"><b style="color:'+DP.berryDk+'">WHY SPECIAL MENTION:  </b>'+pced(prose,'pgWhy','A distinct-lane wildcard is additive, not competitive — captures rose-seekers without cannibalizing Hello Nancy\'s hero.')+'</div>';
   // ===== S12 BOTTLENECKS (synced) =====
   const bn=(n,sev,col,title,body)=>'<div style="flex:1;background:'+DP.pink+';border-radius:10px;padding:14px;min-height:150px"><div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:50%;background:'+DP.berry+';color:#fff;font-family:Georgia,serif;font-weight:700;display:flex;align-items:center;justify-content:center">'+n+'</span><b style="font-family:Georgia,serif;font-size:15px;flex:1">'+title+'</b><span style="background:'+col+';color:#fff;font-size:10px;font-weight:700;border-radius:5px;padding:3px 8px">'+sev+'</span></div><div style="font-size:12px;margin-top:8px">'+body+'</div></div>';
   const s12=kt("WHAT'S HOLDING US BACK",'Bottlenecks & Limitations')+'<div style="display:flex;gap:14px;margin-top:14px">'+
@@ -628,10 +670,23 @@ async function pageDeck(){
     '<div class="dsyncrow"><span class="sigdot" style="background:'+(backlogActive?'#DB3B3B':'#1F9D6B')+'"></span><div><b>Fulfillment backlog:</b> '+blState+' → deck reads <i>'+(backlogActive?'“spend throttled”':'“backlog clearing”')+'</i>. '+(bl?'<a class="ilink" style="cursor:pointer" onclick="toggleSignal(\''+bl.id+'\',\''+(backlogActive?'resolved':'active')+'\')">mark '+(backlogActive?'resolved':'active')+'</a>':'')+'</div></div>'+
     '<div class="dsyncrow"><span class="sigdot" style="background:'+(slides.aura!==false?'#E0922F':'#BCB5C2')+'"></span><div><b>Aura advertorials:</b> '+(slides.aura!==false?'INCLUDED':'EXCLUDED (killed)')+' — Aura + Reframe slides '+(slides.aura!==false?'shown':'left out')+'.</div></div></div>';
   const previews=box('goal',1,s1)+box('scorecard',0,s2)+box('products',0,s3)+box('countries',0,s4)+box('campaigns',0,s5)+box('bridge',0,s6)+box('aura',0,s7)+box('reframe',0,s8)+box('creatives',0,s9)+box('playbook',0,s10)+box('piggyback',0,s11)+box('bottlenecks',0,s12)+box('summary',1,s13);
-  return '<h1>Weekly Deck</h1><div class="cap">Live preview of the downloadable PPTX · '+incCount+' of 13 slides included · click any pink text to edit it directly</div>'+
+  // custom slides
+  const custom=(deck.custom||[]).map(cs=>{const dk=cs.bg==='dark';
+    return '<div class="pvbox"><div class="pvhead"><b>➕ Custom slide</b><span class="dsync">custom</span><span style="flex:1"></span><button class="addbtn" onclick="toggleCustomBg(\''+cs.id+'\')">'+(dk?'◐ dark':'◑ light')+'</button><span class="sicon" title="delete slide" onclick="deleteCustomSlide(\''+cs.id+'\')">×</span></div>'+
+      '<div class="pvstage"><div class="pv'+(dk?' dark':'')+'">'+
+      '<div class="pvk pced" contenteditable="true" data-cid="'+cs.id+'" data-cf="kicker" onblur="saveCustomField(this)">'+escapeHtml(cs.kicker||'CUSTOM')+'</div>'+
+      '<div class="pvt pced" contenteditable="true" data-cid="'+cs.id+'" data-cf="title" onblur="saveCustomField(this)"'+(dk?' style="color:#fff"':'')+'>'+escapeHtml(cs.title||'New slide')+'</div>'+
+      '<div class="pced" contenteditable="true" data-cid="'+cs.id+'" data-cf="body" onblur="saveCustomField(this)" style="display:block;margin-top:22px;font-size:16px;line-height:1.55'+(dk?';color:'+DP.pink:'')+'">'+escapeHtml(cs.body||'Click to edit the slide text…')+'</div>'+
+      '</div></div></div>';}).join('');
+  return '<h1>Weekly Deck</h1><div class="cap">Live preview of the downloadable PPTX · '+incCount+' of 13 base slides + '+(deck.custom||[]).length+' custom · click any pink text to edit it directly</div>'+
     '<div class="datebar" style="margin-bottom:18px"><b>Generate</b><button class="dlbtn" onclick="downloadPptx()">⬇ Download PPTX</button><span style="flex:1"></span><span class="sub2" style="margin:0">untick a slide to leave it out · edits save automatically</span></div>'+
-    sync+previews;
+    sync+previews+custom+'<button class="pvadd" onclick="addCustomSlide()">➕ Add a custom slide</button>';
 }
+async function persistCustom(){await fetch('/api/deck',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom:window._deck.custom||[]})});}
+async function addCustomSlide(){if(!window._deck.custom)window._deck.custom=[];window._deck.custom.push({id:'c'+Date.now().toString(36),kicker:'CUSTOM',title:'New slide',body:'Click to edit the slide text…',bg:'light'});await persistCustom();render();}
+async function saveCustomField(el){const cs=(window._deck.custom||[]).find(c=>c.id===el.dataset.cid);if(!cs)return;cs[el.dataset.cf]=el.innerText.replace(/\s+$/,'');await persistCustom();}
+async function deleteCustomSlide(id){window._deck.custom=(window._deck.custom||[]).filter(c=>c.id!==id);await persistCustom();render();}
+async function toggleCustomBg(id){const cs=(window._deck.custom||[]).find(c=>c.id===id);if(cs){cs.bg=cs.bg==='dark'?'light':'dark';await persistCustom();render();}}
 async function toggleSlide(id,on){await fetch('/api/deck',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({slides:{[id]:on}})});render();}
 const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy,deck:pageDeck};
 let current='overview';
