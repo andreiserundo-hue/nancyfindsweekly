@@ -161,6 +161,20 @@ tr.reached td{background:#F2FAF6 !important}
 @keyframes spin{to{transform:rotate(360deg)}}
 .dlmsg{font-family:Georgia,serif;font-size:17px;color:#1A1430;font-weight:700;line-height:1.3}
 .dlsub{font-size:12.5px;color:#8A8392;margin-top:7px;line-height:1.4}
+/* weekly deck editor */
+.dsyncrow{display:flex;align-items:flex-start;gap:10px;padding:9px 2px;border-bottom:1px solid #F4EEF1;font-size:13px;line-height:1.4}.dsyncrow:last-child{border:0}
+.dsyncrow .sigdot{margin-top:4px}
+.dslide{border:1px solid #F0E6EC;border-radius:11px;padding:12px 14px;margin-bottom:10px;transition:opacity .15s}
+.dslide.off{opacity:.55;background:#FBF7F9}
+.dshead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dtoggle{display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer}
+.dtoggle input{width:17px;height:17px;accent-color:#1F9D6B;cursor:pointer}
+.dsync{font-size:10px;color:#8E2F4C;background:#F7E9EF;border-radius:7px;padding:3px 8px;font-weight:600}
+.doff{font-size:10px;color:#A99FB0;font-style:italic}
+.dprose{margin:9px 0 2px 26px}
+.dplbl{font-size:10px;letter-spacing:.4px;color:#8A8392;text-transform:uppercase;margin-bottom:3px}
+.dpedit{width:calc(100% - 26px);min-height:46px;border:1px solid #E7DFE4;border-radius:8px;padding:8px 10px;font-family:inherit;font-size:12.5px;line-height:1.4;resize:vertical}
+.dpedit:focus{outline:none;border-color:#C44B6E;box-shadow:0 0 0 3px rgba(196,75,110,.12)}
 </style></head><body>
 <div class="nav">
   <div class="brand">Nancy Finds<small>LIVE DASHBOARD</small></div>
@@ -173,6 +187,7 @@ tr.reached td{background:#F2FAF6 !important}
     <div class="navitem" data-p="products">🌹 Products</div>
     <div class="navitem" data-p="countries">🌎 Countries</div>
     <div class="navitem" data-p="strategy" style="margin-top:8px;border-top:1px solid #2A2046;padding-top:14px">✦ Strategy</div>
+    <div class="navitem" data-p="deck">📑 Weekly Deck</div>
   </div>
   <div class="gen" id="gen">live · Glued + Shopify</div>
 </div>
@@ -463,7 +478,42 @@ async function dismissSug(i){const s=window._sug[i];if(!s)return;await fetch('/a
 async function resetSug(){await fetch('/api/suggestions',{method:'DELETE'});render();}
 async function toggleTask(id,done){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({done})});await refreshSignals();render();}
 async function delTask(id){await fetch('/api/tasks?id='+encodeURIComponent(id),{method:'DELETE'});await refreshSignals();render();}
-const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy};
+// ---------- Weekly Deck editor (syncs with Situation Room) ----------
+const DECK_SLIDES=[
+ {id:'goal',label:'1 · The Goal',prose:[['goal','Forward-play line']],sync:'Backlog (Situation Room)'},
+ {id:'scorecard',label:'2 · Scorecard',prose:[['score1','Read line 1'],['score2','Read line 2']],sync:'Backlog (Situation Room)'},
+ {id:'products',label:'3 · Orders by Product',prose:[['prod','“Why this matters” callout']]},
+ {id:'countries',label:'4 · Sales by Country',prose:[['geo','“Read” callout']]},
+ {id:'campaigns',label:'5 · Campaign Analysis',prose:[['camp','“The read” callout']]},
+ {id:'bridge',label:'6 · Bridge Pages',prose:[['bridge','“Why bridge pages” callout']]},
+ {id:'aura',label:'7 · Aura Advertorials',prose:[['aura','“The read” text']]},
+ {id:'reframe',label:'8 · Reframe Study'},
+ {id:'creatives',label:'9 · Creatives (live images)',prose:[['cre','“The pattern” callout']]},
+ {id:'playbook',label:'10 · Playbook Transfer'},
+ {id:'piggyback',label:'11 · Piggyback Article'},
+ {id:'bottlenecks',label:'12 · Bottlenecks',sync:'Backlog (Situation Room)'},
+ {id:'summary',label:'13 · Summary',sync:'Backlog (Situation Room)'},
+];
+async function pageDeck(){
+  const deck=await fetch('/api/deck').then(x=>x.json()).catch(()=>({slides:{},prose:{}}));
+  window._deck=deck;const slides=deck.slides||{},prose=deck.prose||{};
+  const bl=sig('backlog');const blResolved=bl&&bl.status==='resolved';
+  const incCount=DECK_SLIDES.filter(s=>slides[s.id]!==false).length;
+  const auraInc=slides.aura!==false;
+  const syncPanel='<div class="card"><h2>🔗 Sync status</h2><div class="sub2">the deck reads these live when you download — change them here or in the Situation Room</div>'+
+    '<div class="dsyncrow"><span class="sigdot" style="background:'+(blResolved?'#1F9D6B':'#DB3B3B')+'"></span><div><b>Fulfillment backlog:</b> '+(bl?(blResolved?'RESOLVED':'ACTIVE'):'no signal')+' → deck reads <i>'+(blResolved?'“backlog clearing — resuming scale”':'“spend throttled while backlog clears”')+'</i>. '+(bl?'<a class="ilink" style="cursor:pointer" onclick="toggleSignal(\''+bl.id+'\',\''+(blResolved?'active':'resolved')+'\')">mark '+(blResolved?'active':'resolved')+'</a>':'')+'</div></div>'+
+    '<div class="dsyncrow"><span class="sigdot" style="background:'+(auraInc?'#E0922F':'#BCB5C2')+'"></span><div><b>Aura advertorials:</b> '+(auraInc?'INCLUDED':'EXCLUDED (killed)')+' → the Aura Landing Pages + Reframe slides are '+(auraInc?'in':'left out of')+' the deck.</div></div></div>';
+  const slidesHtml=DECK_SLIDES.map(sl=>{const inc=slides[sl.id]!==false;
+    const proseRows=(sl.prose||[]).map(([k,lbl])=>'<div class="dprose"><div class="dplbl">'+lbl+' · '+(prose[k]?'<span style="color:#C44B6E">edited</span>':'<span style="color:#8A8392">auto</span>')+'</div><textarea class="dpedit" data-k="'+k+'" placeholder="Leave blank = auto-written from live data (AI if key set)">'+escapeHtml(prose[k]||'')+'</textarea></div>').join('');
+    return '<div class="dslide'+(inc?'':' off')+'"><div class="dshead"><label class="dtoggle"><input type="checkbox" '+(inc?'checked':'')+' onchange="toggleSlide(\''+sl.id+'\',this.checked)"> <b>'+sl.label+'</b></label>'+(sl.sync?'<span class="dsync">⟲ '+sl.sync+'</span>':'')+(inc?'':'<span class="doff">excluded</span>')+'</div>'+proseRows+'</div>';}).join('');
+  return '<h1>Weekly Deck</h1><div class="cap">Review, edit and toggle exactly what goes into the downloadable PPTX · '+incCount+' of 13 slides included</div>'+
+    '<div class="datebar" style="margin-bottom:18px"><b>Generate</b><button class="dlbtn" onclick="downloadPptx()">⬇ Download PPTX</button><span style="flex:1"></span><button class="addbtn solid" onclick="saveDeckProse()">Save deck text</button></div>'+
+    syncPanel+
+    '<div class="card"><h2>📑 Slides</h2><div class="sub2">untick to leave a slide out · edit the callout text (blank = auto). Tables, charts and creative images always pull live data.</div>'+slidesHtml+'</div>';
+}
+async function toggleSlide(id,on){await fetch('/api/deck',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({slides:{[id]:on}})});render();}
+async function saveDeckProse(){const prose={};document.querySelectorAll('.dpedit').forEach(t=>{prose[t.dataset.k]=t.value.trim();});await fetch('/api/deck',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({prose})});render();}
+const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy,deck:pageDeck};
 let current='overview';
 async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();loadPreviews();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}
 document.querySelectorAll('.navitem').forEach(n=>n.onclick=()=>{document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));n.classList.add('active');current=n.dataset.p;render();});

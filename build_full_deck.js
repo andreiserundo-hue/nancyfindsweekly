@@ -28,9 +28,18 @@ module.exports = async function(r30,r7,ry,out){
   const THRU="DATA THRU "+(ry.end||r7.end||"");
   let P=0;
 
-  // optional AI prose (filled below if key present); otherwise data-aware fallbacks are used inline
-  const ai = (typeof r30.__narr==='object'&&r30.__narr)?r30.__narr:{};
-  const say=(key,fallback)=>ai[key]||fallback;
+  // sync sources: deck settings (toggles + prose overrides), Situation Room signals, optional AI prose
+  const deck=(r30.__deck&&typeof r30.__deck==='object')?r30.__deck:{};
+  const slides=deck.slides||{};const proseOv=deck.prose||{};
+  const signals=Array.isArray(r30.__signals)?r30.__signals:[];
+  const ai=(typeof r30.__narr==='object'&&r30.__narr)?r30.__narr:{};
+  const on=id=>slides[id]!==false;                                   // slide included?
+  const sigById=id=>signals.find(s=>s.id===id);
+  const sigActive=id=>{const s=sigById(id);return s?s.status!=='resolved':false;};
+  const backlogActive=sigActive('backlog');                          // drives backlog-dependent copy
+  const auraOn=on('aura');
+  // priority: user-edited prose (deck tab) > AI prose > data-aware fallback
+  const say=(key,fallback)=>{const o=((proseOv||{})[key]||'').trim();if(o)return o;return ai[key]||fallback;};
 
   function kicker(s,t){s.addText(t,{x:0.5,y:0.28,w:12.3,h:0.3,fontFace:FB,fontSize:11,bold:true,color:C.berry,charSpacing:2});}
   function title(s,t,c){s.addText(t,{x:0.5,y:0.55,w:9.5,h:0.6,fontFace:FH,fontSize:30,bold:true,color:c||C.ink});}
@@ -39,7 +48,7 @@ module.exports = async function(r30,r7,ry,out){
   function callout(s,y,h,parts){s.addShape(S.roundRect,{x:0.5,y,w:12.33,h,fill:{color:C.pinkBox},line:{type:"none"},rectRadius:0.05});s.addText(parts,{x:0.7,y:y+0.08,w:11.9,h:h-0.16,fontFace:FB,fontSize:11.5,valign:"middle",lineSpacingMultiple:1.05});}
 
   // ============ 1 GOAL ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.dark};
+  if(on('goal'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.dark};
     const prod=r30.shop.products||{};const prodTot=Object.values(prod).reduce((a,p)=>a+p.units,0)||1;
     const topP=topProductName(prod)||"—";const bdPct=Math.round(((prod[topP]||{units:0}).units)/prodTot*100);
     const co=r30.shop.countries||{};const ordTot=Object.values(co).reduce((a,c)=>a+c.orders,0)||1;
@@ -62,11 +71,11 @@ module.exports = async function(r30,r7,ry,out){
       s.addText(n.v,{x:x+0.2,y:ny+0.18,w:nw-0.4,h:0.55,fontFace:FH,fontSize:n.sm?22:28,bold:true,color:C.white,valign:"middle"});
       s.addText(n.k,{x:x+0.2,y:ny+0.78,w:nw-0.4,h:0.3,fontFace:FB,fontSize:12,color:C.pinkLt});
       s.addText(n.n,{x:x+0.2,y:ny+1.08,w:nw-0.4,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayLt});});
-    s.addText(say('goal',"Spend is throttled while the fulfillment backlog clears. The forward play: scale the green shoots — "+bright+" + the winning editorial creatives — to rebuild toward $1,000/day."),{x:0.6,y:6.62,w:12,h:0.4,fontFace:FB,fontSize:12,italic:true,color:C.berry});
+    s.addText(say('goal',(backlogActive?"Spend is throttled while the fulfillment backlog clears. ":"Backlog shipment is underway — resuming paid scale. ")+"The forward play: scale the green shoots — "+bright+" + the winning editorial creatives — to "+(backlogActive?"rebuild":"push")+" toward $1,000/day."),{x:0.6,y:6.62,w:12,h:0.4,fontFace:FB,fontSize:12,italic:true,color:C.berry});
     pageno(s,P);})();
 
   // ============ 2 SCORECARD ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('scorecard'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     const HB="6FA8DC",peach="FCE4D6",blu="DEEAF6",brd="BFBFBF";
     kicker(s,"OVERALL · SHOPIFY × META SCORECARD");title(s,"Overall Scorecard — Nancy");meta(s);
     s.addText([{text:"● ",options:{color:C.amber,fontSize:20}},{text:"Mid     ",options:{color:C.ink,fontSize:14}},{text:"● ",options:{color:C.red,fontSize:20}},{text:"Bad     ",options:{color:C.ink,fontSize:14}},{text:"● ",options:{color:C.green,fontSize:20}},{text:"Good",options:{color:C.ink,fontSize:14}}],{x:7.8,y:1.12,w:5.0,h:0.4,fontFace:FB,align:"right",valign:"middle"});
@@ -97,12 +106,12 @@ module.exports = async function(r30,r7,ry,out){
         else s.addText(r.v[i],{x:cx+0.04,y,w:cw[1+i]-0.08,h:rh,fontFace:FB,fontSize:11.5,color:C.ink,align:"center",valign:"middle"});cx+=cw[1+i];}
       for(let i=0;i<3;i++){s.addShape(S.rect,{x:cx,y,w:cw[4+i],h:rh,fill:{color:"FFFFFF"},line:{color:brd,width:1}});s.addText(r.t[i],{x:cx+0.04,y,w:cw[4+i]-0.08,h:rh,fontFace:FB,fontSize:11,color:C.grayTx,align:"center",valign:"middle"});cx+=cw[4+i];}
       y+=rh;});
-    s.addText([{text:"›  ",options:{color:C.berry,bold:true}},{text:say('score1',"True ROAS is "+r30.trueRoas.toFixed(2)+"x L30D vs the 1.50 floor; refunds ("+r7.shop.retPct.toFixed(0)+"% L7D) are dragging net ROAS while the backlog clears."),options:{italic:true,color:C.grayTx}}],{x:0.5,y:y+0.18,w:12.3,h:0.3,fontFace:FB,fontSize:11});
-    s.addText([{text:"›  ",options:{color:C.berry,bold:true}},{text:say('score2',"Action plan: clear the fulfillment backlog to stop the refund leak, then scale the proven LP/creatives to recover ROAS toward target."),options:{italic:true,color:C.grayTx}}],{x:0.5,y:y+0.5,w:12.3,h:0.3,fontFace:FB,fontSize:11});
+    s.addText([{text:"›  ",options:{color:C.berry,bold:true}},{text:say('score1',"True ROAS is "+r30.trueRoas.toFixed(2)+"x L30D vs the 1.50 floor"+(backlogActive?"; refunds ("+r7.shop.retPct.toFixed(0)+"% L7D) are dragging net ROAS while the backlog clears.":"; with the backlog clearing, refund pressure is easing and the funnel can scale.")),options:{italic:true,color:C.grayTx}}],{x:0.5,y:y+0.18,w:12.3,h:0.3,fontFace:FB,fontSize:11});
+    s.addText([{text:"›  ",options:{color:C.berry,bold:true}},{text:say('score2',backlogActive?"Action plan: clear the fulfillment backlog to stop the refund leak, then scale the proven LP/creatives to recover ROAS toward target.":"Action plan: backlog is clearing — scale the proven LP/creatives now to drive ROAS toward target."),options:{italic:true,color:C.grayTx}}],{x:0.5,y:y+0.5,w:12.3,h:0.3,fontFace:FB,fontSize:11});
     pageno(s,P);})();
 
   // ============ 3 ORDERS BY PRODUCT ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('products'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"WHAT'S SELLING · THE TURNING POINT");title(s,"Orders by Product");meta(s);
     s.addText("Units sold (last 30 days). Top 3 highlighted. Focus narrowed to the suction line.",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     const saleable=["Blossom Duo","Vine","Eclipse","Bloom","Stem","Sprout"];const pr=r30.shop.products||{};
@@ -130,7 +139,7 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // ============ 4 COUNTRY ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('countries'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"GEOGRAPHY · WHERE SALES COME FROM");title(s,"Sales by Country");meta(s);
     s.addText("Shopify orders & net revenue by destination (last 30 days). Top 3 highlighted.",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     const co=Object.entries(r30.shop.countries||{}).map(([c,v])=>({c,orders:v.orders,net:v.net})).sort((a,b)=>b.net-a.net);const top=co.slice(0,8);
@@ -150,7 +159,7 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // ============ 5 CAMPAIGN ANALYSIS ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('campaigns'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"CAMPAIGN ANALYSIS · SEGMENT BY PERFORMANCE");title(s,"Campaign Analysis");meta(s);
     s.addText("Active campaigns only, tiered by L7D ROAS.  ● SCALE ≥2.1   ● HOLD 1.6–2.0   ● CUT ≤1.5.  Spend USD.",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     function tier(v){return v>=2.1?{c:C.green,l:"SCALE"}:(v>=1.6?{c:C.amber,l:"HOLD"}:{c:C.red,l:"CUT"});}
@@ -173,7 +182,7 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // ============ 6 BRIDGE PAGES ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('bridge'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"LANDING PAGES · WEBSITE BRIDGE PAGES");title(s,"Website / Bridge Pages");meta(s);
     s.addText("Bridge pages per purchasable product — built because Meta rejects creatives pointing straight to the PDP. Links open live.",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     const head=["BRIDGE PAGE","SPEND 30D","ROAS 30D","ROAS 7D","BUYS 30D","STATUS"];const cw=[5.0,1.5,1.25,1.25,1.2,1.13];let x=0.5,y=1.65,cx=x;
@@ -193,7 +202,7 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // ============ 7 AURA LANDING PAGES ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('aura'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"LANDING PAGES · AURA ADVERTORIALS");title(s,"Aura Landing Pages");meta(s);
     s.addText("The two Aura listicle advertorials — performance + how they look.",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     const iw=5.3,ih=2.55;
@@ -221,7 +230,7 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // ============ 8 LANDING PAGE STUDY & REFRAME (static narrative) ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('reframe'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"FUNNEL STUDY · THE TWO ADVERTORIALS");title(s,"Landing Page Study & Reframe");meta(s);
     const cols=[{tag:"KILLED ~MAY 22",head:'"Best Rose Toys 2026"',url:"aura.today/landing-best-rose-toys-2026",hook:'"The 8 Rose Toys Worth Knowing in 2026"',angle:"Curiosity / category education",roas:"0.08x  (30D)",col:C.red,pts:["Neutral, intellectual tone","Broke scent-trail from 'scream' ad copy","No add-to-carts, no purchases for 3 days","Bled at 0.08x — cut"]},{tag:"KEPT & REFRAMED",head:'"Rose Toys Scream"',url:"aura.today/landing-rose-toys-scream",hook:'"8 Rose Toys So Good You\'ll Scream Out Loud"',angle:"Visceral / outcome-led ('scream' ×11)",roas:"engine",col:C.amber,pts:["Matches winning ad copy exactly","Blossom Duo #1 — 'which to actually buy'","Competitors reframed as beginner/starter","Best-performing Aura LP — needs refresh"]}];
     cols.forEach((c,i)=>{const x=0.5+i*6.25;s.addShape(S.roundRect,{x,y:1.35,w:6.0,h:4.0,fill:{color:C.pinkLt},line:{color:c.col,width:1.5},rectRadius:0.06});
@@ -238,7 +247,7 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // ============ 9 CREATIVE / ADS ANALYSIS (live) ============
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('creatives'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"DOUBLE DOWN VS CUT");title(s,"Creative — Ads Analysis");meta(s);
     s.addText("Top creatives by L30D spend vs the small-budget winners (USD).",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     const m7=byName(r7.creatives);
@@ -259,7 +268,7 @@ module.exports = async function(r30,r7,ry,out){
 
   // ============ STATIC NARRATIVE SLIDES (strategy) ============
   // 10 HELLO NANCY -> NANCY FINDS
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('playbook'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"PLAYBOOK TRANSFER · PROVEN WINNERS");title(s,"Hello Nancy → Nancy Finds");meta(s);
     s.addText("We didn't start from zero. We ported what already won on the sister brand (Hello Nancy) into Nancy Finds.",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     s.addShape(S.roundRect,{x:0.5,y:1.6,w:4.3,h:4.0,fill:{color:C.card},line:{type:"none"},rectRadius:0.06});
@@ -277,7 +286,7 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // 11 PIGGYBACK
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('piggyback'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"GROWTH LEVER · CROSS-BRAND PLACEMENT");title(s,"Piggyback a Proven Article");meta(s);
     s.addText("Hello Nancy's suction-toy advertorial already ranks & converts. Snug a Nancy Finds link onto it — as a special mention, not a forced #1.",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
     s.addShape(S.roundRect,{x:0.5,y:1.6,w:5.5,h:4.0,fill:{color:C.pinkLt},line:{color:C.rule,width:1},rectRadius:0.06});
@@ -298,10 +307,13 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // 12 BOTTLENECKS
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
+  if(on('bottlenecks'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.white};
     kicker(s,"WHAT'S HOLDING US BACK");title(s,"Bottlenecks & Limitations");meta(s);
     s.addText("Four structural constraints. The first is why spend is throttled right now; the rest cap how fast we can scale.",{x:0.5,y:1.15,w:12.3,h:0.3,fontFace:FB,fontSize:10,italic:true,color:C.grayTx});
-    const items=[{num:"1",sev:"ACTIVE",sc:C.red,title:"Fulfillment / shipment backlog",body:"Packaging is delayed and past orders are still pending shipment, so we keep new orders minimal until it clears.",impl:"Implication: revenue capped on purpose. Scaling now → unshipped orders → refunds → chargebacks → Shopify flags the store."},{num:"2",sev:"ONGOING",sc:C.amber,title:"Meta creative rejection risk",body:"Meta rejects product uploads outright, so creatives use Rose-Flower imagery + only non-explicit rose toys.",impl:"Implication: bridge pages lowered — but didn't eliminate — rejection; narrows creative variety and slows testing speed."},{num:"3",sev:"BLOCKER",sc:C.red,title:"Single ad account · no new BM",body:"One ad account only. Attempts to create a new Business Manager / Portfolio fail with errors — across the whole team.",impl:"Implication: no failover, no parallel scaling headroom, all risk in one asset. A single ban halts all paid acquisition."},{num:"4",sev:"DATA",sc:C.amber,title:"Attribution & manual reporting",body:"Meta under-credits Shopify revenue; Glued data is now wired into this live dashboard.",impl:"Implication: true ROAS visible by stitching Shopify + Glued; this deck + dashboard automate what used to be manual."}];
+    const items=[backlogActive
+      ?{num:"1",sev:"ACTIVE",sc:C.red,title:"Fulfillment / shipment backlog",body:"Packaging is delayed and past orders are still pending shipment, so we keep new orders minimal until it clears.",impl:"Implication: revenue capped on purpose. Scaling now → unshipped orders → refunds → chargebacks → Shopify flags the store."}
+      :{num:"1",sev:"CLEARING",sc:C.green,title:"Fulfillment / shipment backlog",body:"Backlog shipment is underway — past orders are moving again and new orders are no longer held back.",impl:"Implication: refund pressure easing; cleared to resume paid scale and rebuild volume toward target."},
+      {num:"2",sev:"ONGOING",sc:C.amber,title:"Meta creative rejection risk",body:"Meta rejects product uploads outright, so creatives use Rose-Flower imagery + only non-explicit rose toys.",impl:"Implication: bridge pages lowered — but didn't eliminate — rejection; narrows creative variety and slows testing speed."},{num:"3",sev:"BLOCKER",sc:C.red,title:"Single ad account · no new BM",body:"One ad account only. Attempts to create a new Business Manager / Portfolio fail with errors — across the whole team.",impl:"Implication: no failover, no parallel scaling headroom, all risk in one asset. A single ban halts all paid acquisition."},{num:"4",sev:"DATA",sc:C.amber,title:"Attribution & manual reporting",body:"Meta under-credits Shopify revenue; Glued data is now wired into this live dashboard.",impl:"Implication: true ROAS visible by stitching Shopify + Glued; this deck + dashboard automate what used to be manual."}];
     const cw=6.0,ch=2.35,gx=0.33,gy=0.25,x0=0.5,y0=1.6;
     items.forEach((it,i)=>{const col=i%2,row=Math.floor(i/2),x=x0+col*(cw+gx),y=y0+row*(ch+gy);
       s.addShape(S.roundRect,{x,y,w:cw,h:ch,fill:{color:C.pinkLt},line:{color:C.rule,width:1},rectRadius:0.06});
@@ -315,7 +327,7 @@ module.exports = async function(r30,r7,ry,out){
     pageno(s,P);})();
 
   // 13 SUMMARY
-  (()=>{const s=pptx.addSlide();P++;s.background={color:C.dark};
+  if(on('summary'))(()=>{const s=pptx.addSlide();P++;s.background={color:C.dark};
     const bestLP=(r7.landing||[]).filter(x=>x.spend>0).sort((a,b)=>b.roas-a.roas)[0];
     const bright=bestLP?clean(bestLP.name).split('/').filter(Boolean).pop():"nancy-bloom";
     s.addText("NANCY FINDS · SUMMARY",{x:0.6,y:0.4,w:12,h:0.3,fontFace:FB,fontSize:12,bold:true,color:C.berry,charSpacing:3});
@@ -330,7 +342,12 @@ module.exports = async function(r30,r7,ry,out){
     s.addText([{text:"DIDN'T\n",options:{color:C.red,bold:true,fontSize:11}},{text:"Direct-to-PDP ads (Meta rejects) · 'Best 2026' listicle · studio product shots · backlog refunds ("+r7.shop.retPct.toFixed(0)+"% L7D)",options:{color:C.pinkLt,fontSize:10.5}}],{x:x1+0.25,y:y0+2.05,w:colW-0.5,h:1.4,fontFace:FB,valign:"top",lineSpacingMultiple:1.0});
     const x2=x1+colW+gap;s.addShape(S.roundRect,{x:x2,y:y0,w:colW,h,fill:{color:C.berryDk},line:{type:"none"},rectRadius:0.06});
     s.addText("WHAT'S NEXT",{x:x2+0.25,y:y0+0.16,w:colW-0.5,h:0.3,fontFace:FB,fontSize:12,bold:true,color:C.white,charSpacing:1});
-    ["Clear the shipment backlog first — stop the refund leak","Re-scale via winners: best LP + new editorial creatives","Refresh the Aura Scream LP","Escalate the Meta BM / ad-account blocker","Run the ABO creative-testing setup (spec below)"].forEach((t,i)=>s.addText([{text:"›  ",options:{color:C.white,bold:true}},{text:t,options:{color:C.pinkLt}}],{x:x2+0.25,y:y0+0.55+i*0.56,w:colW-0.5,h:0.55,fontFace:FB,fontSize:10.5,valign:"top",lineSpacingMultiple:0.96}));
+    const nextList=[
+      backlogActive?"Clear the shipment backlog first — stop the refund leak":"Backlog clearing — resume scaling spend now",
+      "Re-scale via winners: best LP + new editorial creatives"]
+      .concat(auraOn?["Refresh the Aura Scream LP"]:[])
+      .concat(["Escalate the Meta BM / ad-account blocker","Run the ABO creative-testing setup (spec below)"]);
+    nextList.forEach((t,i)=>s.addText([{text:"›  ",options:{color:C.white,bold:true}},{text:t,options:{color:C.pinkLt}}],{x:x2+0.25,y:y0+0.55+i*0.56,w:colW-0.5,h:0.55,fontFace:FB,fontSize:10.5,valign:"top",lineSpacingMultiple:0.96}));
     s.addShape(S.roundRect,{x:0.6,y:5.25,w:12.2,h:1.05,fill:{color:C.card2},line:{type:"none"},rectRadius:0.06});
     s.addText("ABO CREATIVE-TEST SETUP",{x:0.8,y:5.35,w:4,h:0.3,fontFace:FB,fontSize:11,bold:true,color:C.berry,charSpacing:1});
     s.addText([{text:"Each ad set = ",options:{color:C.pinkLt}},{text:"HK$200/day with ~20 creatives",options:{bold:true,color:C.white}},{text:". Kill any creative with ",options:{color:C.pinkLt}},{text:"0 purchases in 3 days",options:{bold:true,color:C.white}},{text:"; let winners run to ",options:{color:C.pinkLt}},{text:"5–7 days, then kill if ROAS < 1.5",options:{bold:true,color:C.white}},{text:".  Run across both domains — direct-to-website and via the Aura Scream LP.",options:{color:C.pinkLt}}],{x:0.8,y:5.65,w:11.8,h:0.6,fontFace:FB,fontSize:11.5,valign:"top",lineSpacingMultiple:1.05});

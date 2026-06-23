@@ -14,6 +14,13 @@ const DEFAULT_TASKS=[{id:'seed-duo',text:'Test the New Blossom Duo Landing Page 
 function loadTasks(){try{return JSON.parse(fs.readFileSync(TASKS_FILE,'utf8'));}catch(e){return DEFAULT_TASKS.map(t=>({...t}));}}
 function saveTasks(t){try{fs.writeFileSync(TASKS_FILE,JSON.stringify(t,null,2));}catch(e){}}
 function readBody(req){return new Promise(r=>{let b='';req.on('data',c=>{b+=c;if(b.length>1e5)req.destroy();});req.on('end',()=>{try{r(JSON.parse(b||'{}'));}catch(e){r({});}});});}
+// ---- weekly deck settings (slide toggles + prose overrides, persisted) ----
+const DECK_FILE=DIR+'/deck.json';
+// Aura advertorial funnel was killed — its two slides default OFF; everything else on.
+const DEFAULT_DECK={slides:{goal:true,scorecard:true,products:true,countries:true,campaigns:true,bridge:true,aura:false,reframe:false,creatives:true,playbook:true,piggyback:true,bottlenecks:true,summary:true},prose:{}};
+function loadDeck(){try{const d=JSON.parse(fs.readFileSync(DECK_FILE,'utf8'));return {slides:Object.assign({},DEFAULT_DECK.slides,d.slides||{}),prose:d.prose||{}};}catch(e){return JSON.parse(JSON.stringify(DEFAULT_DECK));}}
+function saveDeck(d){try{fs.writeFileSync(DECK_FILE,JSON.stringify(d,null,2));}catch(e){}}
+
 // ---- shared "Situation Room" signals (synced context across all tabs) ----
 const SIG_FILE=DIR+'/signals.json';
 const DEFAULT_SIGNALS=[
@@ -111,12 +118,17 @@ http.createServer(async (req,res)=>{
     if(u.pathname==='/api/hourly'){const date=u.searchParams.get('date');await gluedInit();const j=await gluedCall('query_campaign_hourly',{workspace_id:WS,date_range:'custom',start_date:date,end_date:addDay(date),metrics:['spend','revenue','roas','purchase_count']});res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(j||{rows:[]}));}
     if(u.pathname==='/api/pptx'){const now=new Date();const yd=isoHK(new Date(now-86400000)),l7=isoHK(new Date(now-7*86400000)),l30=isoHK(new Date(now-30*86400000));const [r30,r7,ry]=await Promise.all([getRange(l30,yd),getRange(l7,yd),getRange(yd,yd)]);
       try{const narr=await generateNarration(r30,r7,ry);if(narr)r30.__narr=narr;}catch(e){}
-      const out=DIR+'/Nancy Finds - Weekly Review.pptx';await require('./build_full_deck')(r30,r7,ry,out);const buf=fs.readFileSync(out);res.writeHead(200,{'Content-Type':'application/vnd.openxmlformats-officedocument.presentationml.presentation','Content-Disposition':'attachment; filename="Nancy Finds - Weekly Review.pptx"'});return res.end(buf);}
+      r30.__signals=loadSignals();r30.__deck=loadDeck();
+      const out=DIR+'/Nancy Finds - Weekly Review.pptx';delete require.cache[require.resolve('./build_full_deck')];await require('./build_full_deck')(r30,r7,ry,out);const buf=fs.readFileSync(out);res.writeHead(200,{'Content-Type':'application/vnd.openxmlformats-officedocument.presentationml.presentation','Content-Disposition':'attachment; filename="Nancy Finds - Weekly Review.pptx"'});return res.end(buf);}
     if(u.pathname==='/api/tasks'){
       if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadTasks()));}
       if(req.method==='POST'){const bd=await readBody(req);const text=(bd.text||'').toString().trim().slice(0,200);if(!text){res.writeHead(400,{'Content-Type':'application/json'});return res.end('{"error":"empty"}');}const task={id:'t'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36),text,done:false,ts:Date.now()};const t=loadTasks();t.unshift(task);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(task));}
       if(req.method==='PATCH'){const bd=await readBody(req);const id=u.searchParams.get('id');const t=loadTasks().map(x=>x.id===id?{...x,done:!!bd.done}:x);saveTasks(t);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
       if(req.method==='DELETE'){const id=u.searchParams.get('id');saveTasks(loadTasks().filter(x=>x.id!==id));res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
+    }
+    if(u.pathname==='/api/deck'){
+      if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadDeck()));}
+      if(req.method==='PUT'){const bd=await readBody(req);const cur=loadDeck();const next={slides:Object.assign({},cur.slides,bd.slides||{}),prose:Object.assign({},cur.prose,bd.prose||{})};saveDeck(next);res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}');}
     }
     if(u.pathname==='/api/signals'){
       if(req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(loadSignals()));}
