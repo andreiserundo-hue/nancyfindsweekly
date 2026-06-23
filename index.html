@@ -175,6 +175,26 @@ tr.reached td{background:#F2FAF6 !important}
 .dplbl{font-size:10px;letter-spacing:.4px;color:#8A8392;text-transform:uppercase;margin-bottom:3px}
 .dpedit{width:calc(100% - 26px);min-height:46px;border:1px solid #E7DFE4;border-radius:8px;padding:8px 10px;font-family:inherit;font-size:12.5px;line-height:1.4;resize:vertical}
 .dpedit:focus{outline:none;border-color:#C44B6E;box-shadow:0 0 0 3px rgba(196,75,110,.12)}
+/* deck visual previews */
+.pvbox{max-width:920px;margin:0 auto 24px}
+.pvhead{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.pvstage{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;box-shadow:0 8px 26px rgba(26,20,48,.16);background:#fff}
+.pvstage.exoff{opacity:.5;filter:grayscale(.45)}
+.pvstage.exoff .pv{pointer-events:none}
+.exov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:24px;color:#8E2F4C;background:rgba(244,238,241,.35);font-weight:700;letter-spacing:1px;pointer-events:none}
+.pv{position:absolute;top:0;left:0;width:1280px;height:720px;transform-origin:top left;box-sizing:border-box;padding:42px 50px;font-family:Calibri,'Segoe UI',sans-serif;color:#1A1430;background:#fff;overflow:hidden}
+.pv.dark{background:#1A1430;color:#fff}
+.pv .pvk{color:#C44B6E;font-weight:700;letter-spacing:3px;font-size:14px}
+.pv .pvt{font-family:Georgia,serif;font-weight:700;font-size:40px;line-height:1.08;margin:3px 0 0}
+.pvmeta{position:absolute;top:42px;right:50px;text-align:right;font-size:12px;color:#8A8392;line-height:1.4}
+.pvtab{width:100%;border-collapse:collapse;font-size:16px;margin-top:14px}
+.pvtab th{font-size:11px;letter-spacing:.4px;color:#8A8392;text-transform:uppercase;padding:7px 9px;text-align:center;border-bottom:2px solid #F4EEF1}
+.pvtab td{padding:7px 9px;text-align:center;border-bottom:1px solid #F4EEF1}
+.pvtab th.tgt,.pvtab td.tgt{color:#BCB5C2;background:#FBF9FA}
+.pced{outline:none;border-radius:6px;padding:1px 6px;transition:background .12s;cursor:text;border-bottom:1px dashed rgba(196,75,110,.4)}
+.pced:hover{background:rgba(196,75,110,.08)}
+.pced:focus{background:#fff;box-shadow:0 0 0 2px #C44B6E;border-bottom-color:transparent}
+.pv.dark .pced:focus{background:rgba(255,255,255,.12)}
 </style></head><body>
 <div class="nav">
   <div class="brand">Nancy Finds<small>LIVE DASHBOARD</small></div>
@@ -494,28 +514,129 @@ const DECK_SLIDES=[
  {id:'bottlenecks',label:'12 · Bottlenecks',sync:'Backlog (Situation Room)'},
  {id:'summary',label:'13 · Summary',sync:'Backlog (Situation Room)'},
 ];
+const DP={dark:'#1A1430',card:'#2A2046',card2:'#4A3D66',berry:'#C44B6E',berryDk:'#8E2F4C',pink:'#F4EEF1',pinkBox:'#F7E9EF',gray:'#8A8392',grayLt:'#BCB5C2',red:'#DB3B3B',amber:'#E0922F',green:'#1F9D6B',zebra:'#FBF7F9',hlG:'#DCEFE4',hlY:'#FBEFD6',hlB:'#F6DCE4'};
+const rcd=v=>v>=1.75?DP.green:(v>=1.2?DP.amber:DP.red);
+const mfn=(r,days,key)=>{const s=r.shop,sp=r.meta.spendUSD;switch(key){case'rev':return s.net/days;case'spend':return sp/days;case'spendPct':return s.net>0?sp/s.net*100:0;case'ord':return s.orders/days;case'ret':return s.retPct;case'meta':return r.meta.metaRoas;case'true':return r.trueRoas;}};
+window._pvfb={};
+function pced(prose,k,fb){window._pvfb[k]=fb;const v=(prose[k]||'').trim();return '<span class="pced" contenteditable="true" data-k="'+k+'" onblur="saveCell(this)" title="click to edit">'+escapeHtml(v||fb)+'</span>';}
+async function saveCell(el){const k=el.dataset.k;let t=el.innerText.replace(/\s+/g,' ').trim();if(t===((window._pvfb[k]||'').trim()))t='';try{await fetch('/api/deck',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({prose:{[k]:t}})});}catch(e){}if(!window._deck.prose)window._deck.prose={};window._deck.prose[k]=t;}
+function scaleSlides(){document.querySelectorAll('.pvstage').forEach(st=>{const pv=st.querySelector('.pv');if(pv)pv.style.transform='scale('+(st.clientWidth/1280)+')';});}
 async function pageDeck(){
-  const deck=await fetch('/api/deck').then(x=>x.json()).catch(()=>({slides:{},prose:{}}));
+  const [r30,r7,ry,deck]=await Promise.all([getRange(...PRESETS['Last 30 Days']),getRange(...PRESETS['Last 7 Days']),getRange(YEST,YEST),fetch('/api/deck').then(x=>x.json()).catch(()=>({slides:{},prose:{}}))]);
   window._deck=deck;const slides=deck.slides||{},prose=deck.prose||{};
-  const bl=sig('backlog');const blResolved=bl&&bl.status==='resolved';
-  const incCount=DECK_SLIDES.filter(s=>slides[s.id]!==false).length;
-  const auraInc=slides.aura!==false;
-  const syncPanel='<div class="card"><h2>🔗 Sync status</h2><div class="sub2">the deck reads these live when you download — change them here or in the Situation Room</div>'+
-    '<div class="dsyncrow"><span class="sigdot" style="background:'+(blResolved?'#1F9D6B':'#DB3B3B')+'"></span><div><b>Fulfillment backlog:</b> '+(bl?(blResolved?'RESOLVED':'ACTIVE'):'no signal')+' → deck reads <i>'+(blResolved?'“backlog clearing — resuming scale”':'“spend throttled while backlog clears”')+'</i>. '+(bl?'<a class="ilink" style="cursor:pointer" onclick="toggleSignal(\''+bl.id+'\',\''+(blResolved?'active':'resolved')+'\')">mark '+(blResolved?'active':'resolved')+'</a>':'')+'</div></div>'+
-    '<div class="dsyncrow"><span class="sigdot" style="background:'+(auraInc?'#E0922F':'#BCB5C2')+'"></span><div><b>Aura advertorials:</b> '+(auraInc?'INCLUDED':'EXCLUDED (killed)')+' → the Aura Landing Pages + Reframe slides are '+(auraInc?'in':'left out of')+' the deck.</div></div></div>';
-  const slidesHtml=DECK_SLIDES.map(sl=>{const inc=slides[sl.id]!==false;
-    const proseRows=(sl.prose||[]).map(([k,lbl])=>'<div class="dprose"><div class="dplbl">'+lbl+' · '+(prose[k]?'<span style="color:#C44B6E">edited</span>':'<span style="color:#8A8392">auto</span>')+'</div><textarea class="dpedit" data-k="'+k+'" placeholder="Leave blank = auto-written from live data (AI if key set)">'+escapeHtml(prose[k]||'')+'</textarea></div>').join('');
-    return '<div class="dslide'+(inc?'':' off')+'"><div class="dshead"><label class="dtoggle"><input type="checkbox" '+(inc?'checked':'')+' onchange="toggleSlide(\''+sl.id+'\',this.checked)"> <b>'+sl.label+'</b></label>'+(sl.sync?'<span class="dsync">⟲ '+sl.sync+'</span>':'')+(inc?'':'<span class="doff">excluded</span>')+'</div>'+proseRows+'</div>';}).join('');
-  return '<h1>Weekly Deck</h1><div class="cap">Review, edit and toggle exactly what goes into the downloadable PPTX · '+incCount+' of 13 slides included</div>'+
-    '<div class="datebar" style="margin-bottom:18px"><b>Generate</b><button class="dlbtn" onclick="downloadPptx()">⬇ Download PPTX</button><span style="flex:1"></span><button class="addbtn solid" onclick="saveDeckProse()">Save deck text</button></div>'+
-    syncPanel+
-    '<div class="card"><h2>📑 Slides</h2><div class="sub2">untick to leave a slide out · edit the callout text (blank = auto). Tables, charts and creative images always pull live data.</div>'+slidesHtml+'</div>';
+  const backlogActive=sigActive('backlog');const bl=sig('backlog');const incCount=DECK_SLIDES.filter(s=>slides[s.id]!==false).length;
+  const meta='<div class="pvmeta">DATA THRU '+ry.end+'<br><b style="color:'+DP.berryDk+'">OWNER: ANDREI</b></div>';
+  const kt=(k,t,dark)=>'<div class="pvk">'+k+'</div><div class="pvt"'+(dark?' style="color:#fff"':'')+'>'+t+'</div>';
+  const box=(id,dark,inner)=>{const inc=slides[id]!==false;const m=DECK_SLIDES.find(s=>s.id===id);
+    return '<div class="pvbox"><div class="pvhead"><label class="dtoggle"><input type="checkbox" '+(inc?'checked':'')+' onchange="toggleSlide(\''+id+'\',this.checked)"> <b>'+m.label+'</b></label>'+(m.sync?'<span class="dsync">⟲ '+m.sync+'</span>':'')+'<span style="flex:1"></span><span class="dplbl" style="margin:0">✎ click any pink text to edit</span></div>'+
+      '<div class="pvstage'+(inc?'':' exoff')+'"><div class="pv'+(dark?' dark':'')+'">'+meta+inner+'</div>'+(inc?'':'<div class="exov">Excluded from deck</div>')+'</div></div>';};
+  // ---- data ----
+  const prod=r30.shop.products||{};const prodTot=Object.values(prod).reduce((a,p)=>a+p.units,0)||1;
+  const topPe=Object.entries(prod).sort((a,b)=>b[1].units-a[1].units)[0];const topP=topPe?topPe[0]:'—';const bdPct=topPe?Math.round(topPe[1].units/prodTot*100):0;
+  const coArr=Object.entries(r30.shop.countries||{}).sort((a,b)=>b[1].net-a[1].net);const ordTot=Object.values(r30.shop.countries||{}).reduce((a,c)=>a+c.orders,0)||1;const netTot=coArr.reduce((a,c)=>a+c[1].net,0)||1;
+  const bestLP=(r7.landing||[]).filter(x=>x.spend>0).sort((a,b)=>b.roas-a.roas)[0];const bright=bestLP?clean(bestLP.name).split('/').filter(Boolean).pop():'nancy-bloom';
+  // ===== S1 GOAL =====
+  const phase=(t,b,u,s,f)=>'<div style="flex:1;background:'+DP.card+';border:'+(f?'1.5px solid '+DP.berry:'1px solid '+DP.card2)+';border-radius:12px;padding:14px 16px"><div style="color:'+DP.berry+';font-weight:700;font-size:12px;letter-spacing:1px">'+t+'</div><div style="font-family:Georgia,serif;font-size:40px;font-weight:700;color:#fff">'+b+'</div><div style="color:'+DP.grayLt+';font-size:12px">'+u+'</div><div style="color:'+DP.pink+';font-size:11px;font-style:italic">'+s+'</div></div>';
+  const wcard=(v,k,n,g)=>'<div style="flex:1;background:'+(g?DP.berryDk:DP.card2)+';border-radius:11px;padding:12px 14px"><div style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fff">'+v+'</div><div style="color:'+DP.pink+';font-size:12px">'+k+'</div><div style="color:'+DP.grayLt+';font-size:10px;font-style:italic">'+n+'</div></div>';
+  const goalFb=(backlogActive?'Spend is throttled while the fulfillment backlog clears. ':'Backlog shipment is underway — resuming paid scale. ')+'The forward play: scale the green shoots — '+bright+' + the winning editorial creatives — to '+(backlogActive?'rebuild':'push')+' toward $1,000/day.';
+  const s1=kt('NANCY FINDS · PAID ACQUISITION','The Goal — Own These Numbers',true)+
+    '<div style="display:flex;gap:14px;margin-top:18px">'+phase('PHASE 1 · FLOOR','$1,000','revenue / day','ROAS ≥ 1.50 · never breach',true)+phase('PHASE 2 · HEALTHY','$1,000','revenue / day','ROAS ≥ 1.75 · efficient scale')+phase('PHASE 3 · GREAT','$2,000','revenue / day','ROAS ≥ 2.00 · scale volume')+'</div>'+
+    '<div class="pvk" style="margin-top:18px">WHERE WE ARE TODAY</div><div style="display:flex;gap:12px;margin-top:8px">'+wcard(topP,'Top product',bdPct+'% of units')+wcard(coArr[0]?coArr[0][0]:'—','Top market',(coArr[0]?Math.round(coArr[0][1].orders/ordTot*100):0)+'% of orders')+wcard(r30.trueRoas.toFixed(2)+'x','30-day True ROAS','net · vs 1.50 floor')+wcard(bright,'Bright spot',(bestLP?bestLP.roas.toFixed(2):'—')+'x L7D',true)+'</div>'+
+    '<div style="margin-top:16px;color:'+DP.berry+';font-style:italic;font-size:15px">'+pced(prose,'goal',goalFb)+'</div>';
+  // ===== S2 SCORECARD =====
+  const wins=[r30,r7,ry],wd=[30,7,1];
+  const doth=(v,g,b)=>'<span style="color:'+(v>=b?DP.green:(v>=g?DP.amber:DP.red))+'">●</span>';
+  const scDefs=[['Revenue / day','rev','usd',1,1000,2000,['$1,000','$1,500','$2,000']],['Meta Spend / day','spend','usd',0,0,0,['$667','$857','$1,000']],['Spend % of rev','spendPct','pct',0,0,0,['≤67%','≤57%','≤50%']],['Orders / day','ord','ord',0,0,0,['17','25','33']],['Return %','ret','pct1',0,0,0,['≤4%','≤3%','≤2%']],['Meta ROAS','meta','roas',1,1.5,2,['1.50','1.75','2.00']],['True ROAS (net)','true','roas',1,1.5,2,['1.50','1.75','2.00']]];
+  let sc='<table class="pvtab"><tr><th style="text-align:left">METRIC</th><th>L30D</th><th>L7D</th><th>YEST</th><th class="tgt">GOOD</th><th class="tgt">BETTER</th><th class="tgt">BEST</th></tr>';
+  scDefs.forEach(d=>{sc+='<tr'+(d[3]?' style="background:#FCE4D6"':'')+'><td style="text-align:left;font-weight:700">'+d[0]+'</td>';
+    wins.forEach((r,i)=>{const v=mfn(r,wd[i],d[1]);let cell=d[2]==='ord'?(wd[i]>1?v.toFixed(1):String(Math.round(v))):fmtB(d[2],v);if(d[3])cell+=' '+doth(v,d[4],d[5]);sc+='<td>'+cell+'</td>';});
+    d[6].forEach(t=>sc+='<td class="tgt">'+t+'</td>');sc+='</tr>';});
+  sc+='</table>';
+  const sc1=backlogActive?('True ROAS is '+r30.trueRoas.toFixed(2)+'x L30D vs the 1.50 floor; refunds ('+r7.shop.retPct.toFixed(0)+'% L7D) are dragging net ROAS while the backlog clears.'):('True ROAS is '+r30.trueRoas.toFixed(2)+'x L30D vs the 1.50 floor; with the backlog clearing, refund pressure is easing and the funnel can scale.');
+  const sc2=backlogActive?'Action plan: clear the fulfillment backlog to stop the refund leak, then scale the proven LP/creatives to recover ROAS toward target.':'Action plan: backlog is clearing — scale the proven LP/creatives now to drive ROAS toward target.';
+  const s2=kt('OVERALL · SHOPIFY × META SCORECARD','Overall Scorecard — Nancy')+sc+'<div style="margin-top:12px;font-size:14px;color:'+DP.gray+'"><span style="color:'+DP.berry+';font-weight:700">› </span>'+pced(prose,'score1',sc1)+'</div><div style="margin-top:4px;font-size:14px;color:'+DP.gray+'"><span style="color:'+DP.berry+';font-weight:700">› </span>'+pced(prose,'score2',sc2)+'</div>';
+  // ===== S3 PRODUCTS =====
+  const saleable=['Blossom Duo','Vine','Eclipse','Bloom','Stem','Sprout'];
+  const sale=saleable.map(n=>({n,u:(prod[n]||{}).units||0,r:(prod[n]||{}).rev||0})).sort((a,b)=>b.u-a.u);
+  const su=sale.reduce((a,p)=>a+p.u,0),sr=sale.reduce((a,p)=>a+p.r,0);const top3=[DP.hlG,DP.hlY,DP.hlB];
+  let p3='<table class="pvtab"><tr><th style="text-align:left">SALEABLE PRODUCT</th><th>UNITS</th><th>REVENUE</th><th>% UNITS</th></tr>';
+  sale.forEach((p,i)=>{p3+='<tr'+(i<3?' style="background:'+top3[i]+'"':'')+'><td style="text-align:left;font-weight:'+(i<3?700:400)+'">'+p.n+'</td><td><b>'+p.u+'</b></td><td>'+usd(p.r)+'</td><td>'+Math.round(p.u/prodTot*100)+'%</td></tr>';});
+  p3+='<tr style="background:'+DP.pinkBox+';font-weight:700;color:'+DP.berryDk+'"><td style="text-align:left">Saleable total</td><td>'+su+'</td><td>'+usd(sr)+'</td><td>'+Math.round(su/prodTot*100)+'%</td></tr></table>';
+  const prodFb=(sale[0]?sale[0].n:'Blossom Duo')+' ('+(sale[0]?sale[0].u:0)+' units / '+Math.round((sale[0]?sale[0].u:0)/prodTot*100)+'%) is the runaway hero. The suction line = '+su+' of '+prodTot+' units ('+Math.round(su/prodTot*100)+'%). Concentrating spend on this line — not the full catalog — was the turning point.';
+  const s3=kt("WHAT'S SELLING · THE TURNING POINT",'Orders by Product')+p3+'<div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berryDk+'">WHY THIS MATTERS:  </b>'+pced(prose,'prod',prodFb)+'</div>';
+  // ===== S4 COUNTRIES =====
+  let c4='<table class="pvtab"><tr><th style="text-align:left">COUNTRY</th><th>ORDERS</th><th>REVENUE</th><th>% REV</th></tr>';
+  coArr.slice(0,8).forEach(([c,v],i)=>{c4+='<tr'+(i<3?' style="background:'+top3[i]+'"':'')+'><td style="text-align:left;font-weight:'+(i<3?700:400)+'">'+c+'</td><td>'+v.orders+'</td><td>'+usd(v.net)+'</td><td>'+Math.round(v.net/netTot*100)+'%</td></tr>';});
+  c4+='</table>';
+  const c0=coArr[0];const geoFb=(c0?c0[0]:'United States')+' is '+(c0?Math.round(c0[1].orders/ordTot*100):0)+'% of orders and '+(c0?Math.round(c0[1].net/netTot*100):0)+'% of revenue — campaigns target ‘Top 15 Countries’ but demand concentrates there. Weight budget & fulfillment toward '+(c0?c0[0]:'the US')+', and test '+(c0?c0[0]:'US')+'-only ad sets.';
+  const s4=kt('GEOGRAPHY · WHERE SALES COME FROM','Sales by Country')+c4+'<div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berryDk+'">READ:  </b>'+pced(prose,'geo',geoFb)+'</div>';
+  // ===== S5 CAMPAIGNS =====
+  const m7c=Object.fromEntries((r7.campaigns||[]).map(c=>[c.name,c])),ryc=Object.fromEntries((ry.campaigns||[]).map(c=>[c.name,c]));
+  const camps=(r30.campaigns||[]).filter(c=>c.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,6);
+  const tierD=v=>v>=2.1?['SCALE',DP.green]:(v>=1.6?['HOLD',DP.amber]:['CUT',DP.red]);
+  let c5='<table class="pvtab"><tr><th style="text-align:left">CAMPAIGN</th><th>SPEND 30D</th><th>ROAS 30D</th><th>ROAS 7D</th><th>BUYS 30D</th><th>TIER</th></tr>';
+  camps.forEach(c=>{const r7v=(m7c[c.name]||{}).roas||0;const t=tierD(r7v);c5+='<tr><td style="text-align:left;font-weight:700">'+clean(c.name).substring(0,40)+'</td><td>'+usdH(c.spend)+'</td><td style="color:'+rcd(c.roas||0)+';font-weight:700">'+(c.roas||0).toFixed(2)+'</td><td style="color:'+rcd(r7v)+';font-weight:700">'+r7v.toFixed(2)+'</td><td>'+(c.buys||0)+'</td><td style="color:'+t[1]+';font-weight:700">'+t[0]+'</td></tr>';});
+  c5+='</table>';
+  const campFb='Tier each active campaign by L7D ROAS against the 1.5 floor. Rebuild the laggards around the winning funnel (best LP + new editorial creatives) and the ABO creative-test before adding budget.';
+  const s5=kt('CAMPAIGN ANALYSIS · SEGMENT BY PERFORMANCE','Campaign Analysis')+c5+'<div style="margin-top:12px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berryDk+'">THE READ:  </b>'+pced(prose,'camp',campFb)+'</div>';
+  // ===== S6 BRIDGE =====
+  const m7l=Object.fromEntries((r7.landing||[]).map(l=>[l.name,l]));
+  const bridges=(r30.landing||[]).filter(l=>!/aura/i.test(l.name)).sort((a,b)=>b.spend-a.spend).slice(0,6);
+  let b6='<table class="pvtab"><tr><th style="text-align:left">BRIDGE PAGE</th><th>SPEND 30D</th><th>ROAS 30D</th><th>ROAS 7D</th><th>BUYS</th><th>STATUS</th></tr>';
+  bridges.forEach(l=>{const r7v=(m7l[l.name]||{}).roas;const st=(r7v>=1.5)?['SCALE',DP.green]:((l.roas>=0.5||r7v>=0.5)?['WATCH',DP.amber]:['CUT',DP.red]);b6+='<tr><td style="text-align:left;font-weight:700;color:'+DP.berry+'">'+clean(l.name).substring(0,38)+'</td><td>'+usdH(l.spend)+'</td><td style="color:'+rcd(l.roas||0)+';font-weight:700">'+(l.roas||0).toFixed(2)+'</td><td style="color:'+(r7v==null?DP.grayLt:rcd(r7v))+';font-weight:700">'+(r7v==null?'—':r7v.toFixed(2))+'</td><td>'+(l.buys||0)+'</td><td style="color:'+st[1]+';font-weight:700">'+st[0]+'</td></tr>';});
+  b6+='</table>';
+  const bridgeFb='Meta rejects ads linking directly to explicit PDPs, so every product gets a compliant bridge page. Shift budget toward the SCALE pages and the winning funnel; watch the WATCH rows for a second winner.';
+  const s6=kt('LANDING PAGES · WEBSITE BRIDGE PAGES','Website / Bridge Pages')+b6+'<div style="margin-top:12px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berryDk+'">WHY BRIDGE PAGES:  </b>'+pced(prose,'bridge',bridgeFb)+'</div>';
+  // ===== S7 AURA =====
+  const aur=(r30.landing||[]).filter(l=>/aura|scream|rose-toys/i.test(l.name)).sort((a,b)=>b.spend-a.spend).slice(0,2);
+  let a7='<table class="pvtab"><tr><th style="text-align:left">AURA LP</th><th>SPEND 30D</th><th>ROAS 30D</th><th>ROAS 7D</th><th>BUYS</th></tr>';
+  (aur.length?aur:[{name:'Rose Toys Scream',spend:0,roas:0,buys:0}]).forEach(l=>{const r7v=(m7l[l.name]||{}).roas;a7+='<tr><td style="text-align:left;font-weight:700">'+clean(l.name).substring(0,26)+'</td><td>'+usdH(l.spend)+'</td><td style="color:'+rcd(l.roas||0)+';font-weight:700">'+(l.roas||0).toFixed(2)+'</td><td style="color:'+(r7v==null?DP.grayLt:rcd(r7v))+'">'+(r7v==null?'—':r7v.toFixed(2))+'</td><td>'+(l.buys||0)+'</td></tr>';});
+  a7+='</table>';
+  const auraFb='The Scream advertorial carried the funnel because it mirrors the winning ad copy; the “Best Rose Toys 2026” version bled and was cut. Pair Scream with the new editorial creatives to re-lift ROAS.';
+  const s7=kt('LANDING PAGES · AURA ADVERTORIALS','Aura Landing Pages')+a7+'<div style="margin-top:12px;background:'+DP.pink+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berry+'">THE READ  </b><br>'+pced(prose,'aura',auraFb)+'</div>';
+  // ===== S8 REFRAME (static) =====
+  const rfcol=(tag,col,head,pts)=>'<div style="flex:1;background:'+DP.pink+';border:1.5px solid '+col+';border-radius:10px;padding:14px"><span style="background:'+col+';color:#fff;font-size:11px;font-weight:700;border-radius:5px;padding:3px 9px">'+tag+'</span><div style="font-family:Georgia,serif;font-size:18px;font-weight:700;margin:8px 0 4px">'+head+'</div>'+pts.map(p=>'<div style="font-size:12px;margin:4px 0"><span style="color:'+col+'">› </span>'+p+'</div>').join('')+'</div>';
+  const s8=kt('FUNNEL STUDY · THE TWO ADVERTORIALS','Landing Page Study & Reframe')+'<div style="display:flex;gap:14px;margin-top:14px">'+rfcol('KILLED ~MAY 22',DP.red,'“Best Rose Toys 2026”',['Neutral, intellectual tone','Broke scent-trail from ‘scream’ copy','No add-to-carts for 3 days','Bled at 0.08x — cut'])+rfcol('KEPT & REFRAMED',DP.amber,'“Rose Toys Scream”',['Matches winning ad copy exactly','Blossom Duo #1 — ‘which to buy’','Competitors reframed as starter','Best-performing Aura LP'])+'</div><div style="margin-top:14px;background:'+DP.dark+';border-radius:10px;padding:14px 16px;color:'+DP.pink+';font-size:13px"><b style="color:'+DP.berry+'">THE REFRAME DIRECTIVE — LANDED.</b> Competitors boxed as lesser options while Blossom Duo owns ‘which one should I actually buy.’</div>';
+  // ===== S9 CREATIVES (live images) =====
+  let cre=(r30.creatives||[]).filter(c=>c.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,5);if(!cre.length)cre=(r7.creatives||[]).filter(c=>c.spend>0).slice(0,5);
+  const stc={SCALE:DP.green,WATCH:DP.amber,CUT:DP.red};const stf=v=>v>=1.5?'SCALE':(v>=1.0?'WATCH':'CUT');
+  const creCards=cre.map(c=>{const roas=c.roas||0;const st=stf(roas);const im=c.img?'<img src="'+c.img+'" style="width:100%;aspect-ratio:9/16;object-fit:cover;background:#000;border-radius:6px">':'<div style="width:100%;aspect-ratio:9/16;background:'+DP.card2+';border-radius:6px;display:flex;align-items:center;justify-content:center;color:'+DP.pink+';font-size:11px">no image</div>';
+    return '<div style="flex:1;background:'+DP.pink+';border-radius:10px;padding:8px">'+im+'<div style="font-size:11px;font-weight:700;margin-top:6px;min-height:28px">'+clean(c.name).substring(0,30)+'</div><div style="font-size:11px;color:'+DP.gray+'">'+usdH(c.spend)+' · <b style="color:'+stc[st]+'">'+roas.toFixed(2)+'x</b></div><div style="margin-top:4px;background:'+stc[st]+';color:#fff;font-size:10px;font-weight:700;border-radius:5px;padding:2px 7px;display:inline-block">'+st+' · '+(c.buys||0)+' buys</div></div>';}).join('');
+  const creFb='The big studio shots eat most spend at low ROAS while small-budget editorial / lifestyle angles punch far above their spend. Feed budget to the new editorial winners via the ABO creative-test.';
+  const s9=kt('DOUBLE DOWN VS CUT','Creative — Ads Analysis')+'<div style="display:flex;gap:10px;margin-top:14px">'+(creCards||'<div style="color:'+DP.gray+'">No creative spend in range</div>')+'</div><div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:14px"><b style="color:'+DP.berryDk+'">THE PATTERN:  </b>'+pced(prose,'cre',creFb)+'</div>';
+  // ===== S10 PLAYBOOK / S11 PIGGYBACK (static) =====
+  const s10=kt('PLAYBOOK TRANSFER · PROVEN WINNERS','Hello Nancy → Nancy Finds')+'<div style="display:flex;gap:16px;margin-top:16px;align-items:stretch"><div style="flex:1;background:'+DP.card+';border-radius:10px;padding:16px;color:#fff"><div style="color:'+DP.berry+';font-weight:700;letter-spacing:2px">HELLO NANCY</div><div style="font-size:12px;color:'+DP.grayLt+';font-style:italic;margin-bottom:8px">Sister brand · proven at scale</div>'+['Winning on-creative text hooks','Rose-toy ad creatives','Advertorial / listicle structure','Bridge-page funnel idea'].map(t=>'<div style="font-size:13px;margin:6px 0;color:'+DP.pink+'">✓ '+t+'</div>').join('')+'</div><div style="flex:1;background:'+DP.pink+';border:1.5px solid '+DP.berry+';border-radius:10px;padding:16px"><div style="color:'+DP.berryDk+';font-weight:700;letter-spacing:2px">NANCY FINDS</div><div style="font-size:12px;color:'+DP.gray+';font-style:italic;margin-bottom:8px">New brand · winners transplanted</div>'+[['“So Good, You\'ll Scream”','→ top hook + LP theme'],['“He Loves It Too”','→ 2nd-highest purchases'],['Rose Ads','re-shot for Nancy Finds'],['Bridge Pages','→ lowered Meta rejection']].map(a=>'<div style="margin:6px 0"><b style="font-family:Georgia,serif;font-style:italic;color:'+DP.berryDk+'">'+a[0]+'</b> <span style="font-size:12px">'+a[1]+'</span></div>').join('')+'</div></div><div style="margin-top:14px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:13px"><b style="color:'+DP.berryDk+'">WHY IT WORKED:  </b>Porting battle-tested copy, creative and the bridge-page funnel skipped months of testing — Nancy Finds inherited a proven playbook on day one.</div>';
+  const s11=kt('GROWTH LEVER · CROSS-BRAND PLACEMENT','Piggyback a Proven Article')+'<div style="display:flex;gap:16px;margin-top:16px"><div style="flex:1;background:'+DP.pink+';border-radius:10px;padding:14px"><div style="color:'+DP.berryDk+';font-weight:700">THE ASSET (Hello Nancy)</div><div style="font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:15px;margin:6px 0">“7 Suction Toys So Good, You\'ll Want to Cheat”</div>'+[['1','Lem — Hello Nancy',1],['2','Namii 2',0],['3','Sona 2 — LELO',0],['4','Avo — Hello Nancy',1],['5','Satisfyer Pro 2',0]].map(r=>'<div style="font-size:12px;margin:3px 0;color:'+(r[2]?DP.ink:DP.gray)+'"><b style="color:'+(r[2]?DP.berry:DP.grayLt)+'">'+r[0]+'</b>  '+r[1]+'</div>').join('')+'</div><div style="flex:1;background:'+DP.dark+';border-radius:10px;padding:14px;color:#fff"><div style="color:'+DP.berry+';font-weight:700">THE MOVE — EDITOR\'S WILDCARD</div><div style="font-family:Georgia,serif;font-size:18px;font-weight:700;margin:6px 0">Blossom Duo</div><div style="font-size:12px;color:'+DP.pink+';font-style:italic">The rose-shaped pick that kept stealing the spotlight — a magnetic cap that flips between suction and tapping. The design-forward pick to watch. → nancyfinds.com</div></div></div><div style="margin-top:12px;background:'+DP.pinkBox+';border-radius:10px;padding:12px 16px;font-size:13px"><b style="color:'+DP.berryDk+'">WHY SPECIAL MENTION:  </b>A distinct-lane wildcard is additive, not competitive — captures rose-seekers without cannibalizing Hello Nancy\'s hero.</div>';
+  // ===== S12 BOTTLENECKS (synced) =====
+  const bn=(n,sev,col,title,body)=>'<div style="flex:1;background:'+DP.pink+';border-radius:10px;padding:14px;min-height:150px"><div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:50%;background:'+DP.berry+';color:#fff;font-family:Georgia,serif;font-weight:700;display:flex;align-items:center;justify-content:center">'+n+'</span><b style="font-family:Georgia,serif;font-size:15px;flex:1">'+title+'</b><span style="background:'+col+';color:#fff;font-size:10px;font-weight:700;border-radius:5px;padding:3px 8px">'+sev+'</span></div><div style="font-size:12px;margin-top:8px">'+body+'</div></div>';
+  const s12=kt("WHAT'S HOLDING US BACK",'Bottlenecks & Limitations')+'<div style="display:flex;gap:14px;margin-top:14px">'+
+    (backlogActive?bn('1','ACTIVE',DP.red,'Fulfillment / shipment backlog','Past orders pending shipment; new orders kept minimal until it clears. Revenue capped on purpose.'):bn('1','CLEARING',DP.green,'Fulfillment / shipment backlog','Backlog shipment is underway — orders moving again; refund pressure easing, cleared to resume scale.'))+
+    bn('2','ONGOING',DP.amber,'Meta creative rejection','Meta rejects product uploads; creatives use Rose-Flower imagery only. Narrows variety, slows testing.')+'</div><div style="display:flex;gap:14px;margin-top:14px">'+
+    bn('3','BLOCKER',DP.red,'Single ad account','One ad account; new BM attempts fail. No failover — a single ban halts all paid acquisition.')+
+    bn('4','DATA',DP.amber,'Attribution & reporting','Meta under-credits Shopify; this dashboard now stitches Shopify + Glued automatically.')+'</div>';
+  // ===== S13 SUMMARY =====
+  const col=(t,inner,bg)=>'<div style="flex:1;background:'+(bg||DP.card)+';border-radius:10px;padding:14px"><div style="color:'+(bg===DP.berryDk?'#fff':DP.berry)+';font-weight:700;letter-spacing:1px;font-size:13px">'+t+'</div>'+inner+'</div>';
+  const li=a=>a.map(t=>'<div style="font-size:12px;color:'+DP.pink+';margin:6px 0">› '+t+'</div>').join('');
+  const nextL=[(backlogActive?'Clear the shipment backlog first':'Backlog clearing — resume scaling now'),'Re-scale via winners: best LP + editorial creatives'].concat(slides.aura!==false?['Refresh the Aura Scream LP']:[]).concat(['Escalate the Meta BM blocker','Run the ABO creative-test']);
+  const s13=kt('NANCY FINDS · SUMMARY',"What We Did · What Worked · What's Next",true)+'<div style="display:flex;gap:14px;margin-top:16px">'+
+    col('WHAT WE DID',li(['Adapted Hello Nancy winners + bridge-page idea','Built the 2 Aura listicles','Rose-Flower imagery (Meta rejects products)','Focused spend on the suction line']))+
+    col('WORKED / DIDN\'T','<div style="color:'+DP.green+';font-weight:700;font-size:12px;margin-top:6px">WORKED</div><div style="font-size:12px;color:'+DP.pink+'">Bridge pages · '+bright+' LP · editorial creatives · suction focus</div><div style="color:'+DP.red+';font-weight:700;font-size:12px;margin-top:8px">DIDN\'T</div><div style="font-size:12px;color:'+DP.pink+'">Direct-to-PDP ads · ‘Best 2026’ · studio shots · refunds ('+r7.shop.retPct.toFixed(0)+'% L7D)</div>')+
+    col('WHAT\'S NEXT',li(nextL),DP.berryDk)+'</div>';
+  // assemble
+  const blState=bl?(bl.status==='resolved'?'RESOLVED':'ACTIVE'):'no signal';
+  const sync='<div class="card"><h2>🔗 Sync status</h2><div class="sub2">the deck reads these live — change here or in the Situation Room</div>'+
+    '<div class="dsyncrow"><span class="sigdot" style="background:'+(backlogActive?'#DB3B3B':'#1F9D6B')+'"></span><div><b>Fulfillment backlog:</b> '+blState+' → deck reads <i>'+(backlogActive?'“spend throttled”':'“backlog clearing”')+'</i>. '+(bl?'<a class="ilink" style="cursor:pointer" onclick="toggleSignal(\''+bl.id+'\',\''+(backlogActive?'resolved':'active')+'\')">mark '+(backlogActive?'resolved':'active')+'</a>':'')+'</div></div>'+
+    '<div class="dsyncrow"><span class="sigdot" style="background:'+(slides.aura!==false?'#E0922F':'#BCB5C2')+'"></span><div><b>Aura advertorials:</b> '+(slides.aura!==false?'INCLUDED':'EXCLUDED (killed)')+' — Aura + Reframe slides '+(slides.aura!==false?'shown':'left out')+'.</div></div></div>';
+  const previews=box('goal',1,s1)+box('scorecard',0,s2)+box('products',0,s3)+box('countries',0,s4)+box('campaigns',0,s5)+box('bridge',0,s6)+box('aura',0,s7)+box('reframe',0,s8)+box('creatives',0,s9)+box('playbook',0,s10)+box('piggyback',0,s11)+box('bottlenecks',0,s12)+box('summary',1,s13);
+  return '<h1>Weekly Deck</h1><div class="cap">Live preview of the downloadable PPTX · '+incCount+' of 13 slides included · click any pink text to edit it directly</div>'+
+    '<div class="datebar" style="margin-bottom:18px"><b>Generate</b><button class="dlbtn" onclick="downloadPptx()">⬇ Download PPTX</button><span style="flex:1"></span><span class="sub2" style="margin:0">untick a slide to leave it out · edits save automatically</span></div>'+
+    sync+previews;
 }
 async function toggleSlide(id,on){await fetch('/api/deck',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({slides:{[id]:on}})});render();}
-async function saveDeckProse(){const prose={};document.querySelectorAll('.dpedit').forEach(t=>{prose[t.dataset.k]=t.value.trim();});await fetch('/api/deck',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({prose})});render();}
 const PAGES={overview:pageOverview,scorecard:pageScorecard,campaigns:pageCampaigns,landing:pageLanding,creatives:pageCreatives,products:pageProducts,countries:pageCountries,strategy:pageStrategy,deck:pageDeck};
 let current='overview';
-async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();loadPreviews();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}
+async function render(){document.getElementById('view').innerHTML='<div class="loading">Loading '+current+'… (pulling Glued + Shopify)</div>';try{document.getElementById('view').innerHTML=await PAGES[current]();loadPreviews();scaleSlides();}catch(e){document.getElementById('view').innerHTML='<div class="loading">Error: '+e.message+'</div>';}}
+window.addEventListener('resize',()=>{try{scaleSlides();}catch(e){}});
 document.querySelectorAll('.navitem').forEach(n=>n.onclick=()=>{document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));n.classList.add('active');current=n.dataset.p;render();});
 renderDatebar();refreshSignals().then(render);
 </script></body></html>
